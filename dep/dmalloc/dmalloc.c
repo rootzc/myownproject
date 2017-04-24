@@ -74,7 +74,7 @@ size_t dmalloc_size(void *ptr) {
     return size+PREFIX_SIZE;
 }
 #endif
-
+//这里使用很叼的jemalloc分配
 void *
 _dalloc(size_t size, const char *name, int line)
 {

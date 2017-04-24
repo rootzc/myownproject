@@ -2,15 +2,18 @@
 #define _DLIST_H__
 
 /* Node, List, and Iterator are the only data structures used currently. */
-
+//双向链表节点
 typedef struct dlistNode {
     struct dlistNode *prev;
     struct dlistNode *next;
     void *value;
 } dlistNode;
 
+//迭代器
 typedef struct dlistIter {
+    //当强节点
     dlistNode *next;
+    //迭代方向
     int direction;
 } dlistIter;
 
@@ -23,6 +26,7 @@ typedef struct dlist {
     unsigned long len;
 } dlist;
 
+//使用宏提高性能
 /* Functions implemented as macros */
 #define dlistLength(l) ((l)->len)
 #define dlistFirst(l) ((l)->head)

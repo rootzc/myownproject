@@ -1,18 +1,19 @@
 #ifndef _DARRAY_H_
 #define _DARRAY_H_
-
+//
 typedef int (*darray_compare_t)(const void *, const void *);
 typedef int (*darray_each_t)(void *, void *);
-
+//
 typedef struct darray {
-    unsigned long long   nelem;  /* # element */
-    void                 *elem;  /* element */
-    size_t               size;   /* element size */
-    unsigned long long   nalloc; /* # allocated element */
+    unsigned long long   nelem;  /* # element *///当前下标
+    void                 *elem;  /* element *///成员
+    size_t               size;   /* element size *///每个成员的字节长度
+    unsigned long long   nalloc; /* # allocated element *///分配的总个数
 } darray;
 
 #define null_darray { 0, NULL, 0, 0 }
 
+//初始化darry_null为空
 static inline void
 darray_null(darray *a)
 {
@@ -22,6 +23,7 @@ darray_null(darray *a)
     a->nalloc = 0;
 }
 
+//设置对应的字段
 static inline void
 darray_set(darray *a, void *elem, size_t size, unsigned long long nalloc)
 {
@@ -31,6 +33,7 @@ darray_set(darray *a, void *elem, size_t size, unsigned long long nalloc)
     a->nalloc = nalloc;
 }
 
+//返回darray的元素数量
 static inline unsigned long long
 darray_n(const darray *a)
 {

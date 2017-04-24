@@ -321,9 +321,9 @@ init_server(struct instance *nci)
     server.rpopCommand = lookupCommandByCString("rpop");
     server.sremCommand = lookupCommandByCString("srem");
     server.execCommand = lookupCommandByCString("exec");
-
     conf = conf_create(nci->conf_filename);
 
+    //create commandtable
     ret = populateCommandsNeedAdminpass();
     if (ret != VR_OK) {
         log_error("Populate need adminpass commands failed");
@@ -335,6 +335,7 @@ init_server(struct instance *nci)
     server.dblnum = cserver->databases;
     server.dbinum = cserver->internal_dbs_per_databases;
     server.dbnum = server.dblnum*server.dbinum;
+    //crete databases
     darray_init(&server.dbs, server.dbnum, sizeof(redisDb));
     server.pidfile = nci->pid_filename;
     server.executable = NULL;
@@ -383,7 +384,7 @@ init_server(struct instance *nci)
     createSharedObjects();
 
     server.port = cserver->port;
-    
+  //________________________________________________________________________________  
     /* Init worker first */
     ret = workers_init(nci->thread_num);
     if (ret != VR_OK) {

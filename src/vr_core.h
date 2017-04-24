@@ -128,16 +128,25 @@ struct vr_worker;
 #include <vr_hyperloglog.h>
 
 #include <vr_slowlog.h>
-
+//服务器的一些配置：将redis中的散落在redis.h中的server中配置选项整合
 struct instance {
+    //日志等级
     int             log_level;                   /* log level */
+    //日志文件名
     char            *log_filename;               /* log filename */
+    //配置文件名字
     char            *conf_filename;              /* configuration filename */
+    //主机名
     char            hostname[VR_MAXHOSTNAMELEN]; /* hostname */
+    //缓冲区大小
     size_t          mbuf_chunk_size;             /* mbuf chunk size */
+    //运行的进程id
     pid_t           pid;                         /* process id */
+    //pid文件名
     char            *pid_filename;               /* pid filename */
+    //是否创建了pid文件的标志
     unsigned        pidfile:1;                   /* pid file created? */
+    //线程数目
     int             thread_num;                  /* the thread number */
 };
 

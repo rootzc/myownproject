@@ -2,7 +2,7 @@
 #define _DLOCKQUEUE_H_
 
 struct dlist;
-
+//有锁队列:使用list作为适配器
 typedef struct dlockqueue{
     struct dlist *l;
     long long maxlen;

@@ -9,6 +9,7 @@
  * by the user before to call AlFreeList().
  *
  * On error, NULL is returned. Otherwise the pointer to the new list. */
+//创建链表
 dlist *dlistCreate(void)
 {
     struct dlist *list;
@@ -26,6 +27,7 @@ dlist *dlistCreate(void)
 /* Free the whole list.
  *
  * This function can't fail. */
+//释放整个链表
 void dlistRelease(dlist *list)
 {
     unsigned long len;
@@ -48,6 +50,7 @@ void dlistRelease(dlist *list)
  * On error, NULL is returned and no operation is performed (i.e. the
  * list remains unaltered).
  * On success the 'list' pointer you pass to the function is returned. */
+//头插
 dlist *dlistAddNodeHead(dlist *list, void *value)
 {
     dlistNode *node;
@@ -74,6 +77,7 @@ dlist *dlistAddNodeHead(dlist *list, void *value)
  * On error, NULL is returned and no operation is performed (i.e. the
  * list remains unaltered).
  * On success the 'list' pointer you pass to the function is returned. */
+//尾插
 dlist *dlistAddNodeTail(dlist *list, void *value)
 {
     dlistNode *node;
@@ -93,7 +97,7 @@ dlist *dlistAddNodeTail(dlist *list, void *value)
     list->len++;
     return list;
 }
-
+//插入节点，参数表示头插还是尾插
 dlist *dlistInsertNode(dlist *list, dlistNode *old_node, void *value, int after) {
     dlistNode *node;
 
@@ -127,6 +131,7 @@ dlist *dlistInsertNode(dlist *list, dlistNode *old_node, void *value, int after)
  * It's up to the caller to free the private value of the node.
  *
  * This function can't fail. */
+//删除特定节点
 void dlistDelNode(dlist *list, dlistNode *node)
 {
     if (node->prev)
@@ -146,6 +151,7 @@ void dlistDelNode(dlist *list, dlistNode *node)
  * call to dlistNext() will return the next element of the list.
  *
  * This function can't fail. */
+//得到迭代器
 dlistIter *dlistGetIterator(dlist *list, int direction)
 {
     dlistIter *iter;
@@ -160,11 +166,13 @@ dlistIter *dlistGetIterator(dlist *list, int direction)
 }
 
 /* Release the iterator memory */
+//释放迭代器
 void dlistReleaseIterator(dlistIter *iter) {
     dfree(iter);
 }
 
 /* Create an iterator in the list private iterator structure */
+//
 void dlistRewind(dlist *list, dlistIter *li) {
     li->next = list->head;
     li->direction = AL_START_HEAD;
@@ -189,6 +197,7 @@ void dlistRewindTail(dlist *list, dlistIter *li) {
  * }
  *
  * */
+//迭代
 dlistNode *dlistNext(dlistIter *iter)
 {
     dlistNode *current = iter->next;
@@ -210,6 +219,7 @@ dlistNode *dlistNext(dlistIter *iter)
  * the original node is used as value of the copied node.
  *
  * The original list both on success or error is never modified. */
+//复制链表
 dlist *dlistDup(dlist *orig)
 {
     dlist *copy;
@@ -250,6 +260,7 @@ dlist *dlistDup(dlist *orig)
  * On success the first matching node pointer is returned
  * (search starts from head). If no matching node exists
  * NULL is returned. */
+//查找
 dlistNode *dlistSearchKey(dlist *list, void *key)
 {
     dlistIter iter;
@@ -275,6 +286,7 @@ dlistNode *dlistSearchKey(dlist *list, void *key)
  * and so on. Negative integers are used in order to count
  * from the tail, -1 is the last element, -2 the penultimate
  * and so on. If the index is out of range NULL is returned. */
+//根据index找
 dlistNode *dlistIndex(dlist *list, long index) {
     dlistNode *n;
 
@@ -290,6 +302,7 @@ dlistNode *dlistIndex(dlist *list, long index) {
 }
 
 /* Rotate the list removing the tail node and inserting it to the head. */
+//轮回一次
 void dlistRotate(dlist *list) {
     dlistNode *tail = list->tail;
 
@@ -305,11 +318,13 @@ void dlistRotate(dlist *list) {
     list->head = tail;
 }
 
+//插入
 dlist *dlistPush(dlist *list, void *value) {
     dlistAddNodeTail(list, value);
     return list;
 }
 
+//压出
 void *dlistPop(dlist *list) {
     dlistNode *node;
     void *value;

@@ -113,7 +113,7 @@ log_loggable(int level)
 
     return 1;
 }
-
+//记录日志后退出
 void
 _log(const char *file, int line, int level, int panic, const char *fmt, ...)
 {

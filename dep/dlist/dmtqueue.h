@@ -6,6 +6,7 @@
 #define MAX_LENGTH_POLICY_EVICT_END     2
 
 /* Multi-thread safe queue */
+//多线程安全的队列
 typedef struct dmtqueue{
     void *l;
     long long (*lock_push)(void *q, void *value);

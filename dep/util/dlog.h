@@ -4,7 +4,7 @@
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
-
+//用于积累
 struct logger {
     char *name;  /* log file name */
     int  level;  /* log level */

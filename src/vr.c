@@ -23,14 +23,14 @@
 #define VR_INTERVAL         (30 * 1000) /* in msec */
 
 #define VR_PID_FILE         NULL
-
+//得到系统的cpu个数
 #define VR_THREAD_NUM_DEFAULT	(sysconf(_SC_NPROCESSORS_ONLN)>6?6:sysconf(_SC_NPROCESSORS_ONLN))
 
 static int show_help;
 static int show_version;
 static int test_conf;
 static int daemonize;
-
+//用于解析字符串命令行
 static struct option long_options[] = {
     { "help",           no_argument,        NULL,   'h' },
     { "version",        no_argument,        NULL,   'V' },
@@ -277,23 +277,28 @@ static void
 vr_set_default_options(struct instance *nci)
 {
     int status;
-
+    //日志等级为可见
     nci->log_level = VR_LOG_DEFAULT;
+    //日志文件路径:NULL
     nci->log_filename = VR_LOG_PATH;
-
+    //配置文件名："conf/vire.conf
     nci->conf_filename = VR_CONF_PATH;
-
+    //设置主机名:主机名称长度最长为256,调用了一个封装了底层函数gethostname的宏
     status = vr_gethostname(nci->hostname, VR_MAXHOSTNAMELEN);
+    //判断出错记录日志
     if (status < 0) {
         log_warn("gethostname failed, ignored: %s", strerror(errno));
         dsnprintf(nci->hostname, VR_MAXHOSTNAMELEN, "unknown");
     }
+    //向主机名数组末尾添加‘0’，
     nci->hostname[VR_MAXHOSTNAMELEN - 1] = '\0';
-
+    //进程id为-1
     nci->pid = (pid_t)-1;
+    //pid文件名
     nci->pid_filename = NULL;
+    //pid文件创建标志
     nci->pidfile = 0;
-
+    //线程数目为6或者cpu个数
     nci->thread_num = (int)VR_THREAD_NUM_DEFAULT;
 }
 
@@ -305,12 +310,26 @@ vr_get_options(int argc, char **argv, struct instance *nci)
     opterr = 0;
 
     for (;;) {
+        //调用api解析命令行
+        //static char short_options[] = "hVtdv:o:c:p:T:";
+            //static struct option long_options[] = {
+            //    { "help",           no_argument,        NULL,   'h' },
+            //    { "version",        no_argument,        NULL,   'V' },
+            //    { "test-conf",      no_argument,        NULL,   't' },
+            //    { "daemonize",      no_argument,        NULL,   'd' },
+            //    { "verbose",        required_argument,  NULL,   'v' },
+            //    { "output",         required_argument,  NULL,   'o' },
+            //    { "conf-file",      required_argument,  NULL,   'c' },
+            //    { "pid-file",       required_argument,  NULL,   'p' },
+            //    { "thread-num",     required_argument,  NULL,   'T' },
+            //    { NULL,             0,                  NULL,    0  }
+            //};
         c = getopt_long(argc, argv, short_options, long_options, NULL);
         if (c == -1) {
             /* no more options */
             break;
         }
-
+        //根据解析的结果设置对应的字符串标记
         switch (c) {
         case 'h':
             show_version = 1;
@@ -330,6 +349,7 @@ vr_get_options(int argc, char **argv, struct instance *nci)
             break;
 
         case 'v':
+            //optarg为库函数的全局变量，其指向当前选项的参数
             value = vr_atoi(optarg, strlen(optarg));
             if (value < 0) {
                 log_stderr("vire: option -v requires a number");
@@ -506,19 +526,21 @@ vr_run(struct instance *nci)
 int
 main(int argc, char **argv)
 {
+    //运行状态
     rstatus_t status;
     struct instance nci;
-
+//设置缺省的instance 配置选项
     vr_set_default_options(&nci);
-
+//解析命令行参数，并设置对应的标记值
     status = vr_get_options(argc, argv, &nci);
     if (status != VR_OK) {
         vr_show_usage();
         exit(1);
     }
-
+//根据上一步解析的命令行参数设置的标志启动函数
     if (show_version) {
         log_stderr("This is vire-%s" CRLF, VR_VERSION_STRING);
+        //打印使用方法
         if (show_help) {
             vr_show_usage();
         }
