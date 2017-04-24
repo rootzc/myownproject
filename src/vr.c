@@ -418,7 +418,7 @@ static bool
 vr_test_conf(struct instance *nci, int test)
 {
     vr_conf *cf;
-    //打开配置文件
+    //打开配置文件:创建配置树
     cf = conf_create(nci->conf_filename);
     if (cf == NULL) {
         if (test)
@@ -447,7 +447,7 @@ vr_pre_run(struct instance *nci)
 
     log_debug(LOG_VERB, "Vire used logfile: %s", nci->conf_filename);
 
-    //测试配置文件：并且本次操作不记录日志
+    //测试加载配置文件：并且本次操作不记录日志
     if (!vr_test_conf(nci, false)) {
         log_error("conf file %s is error", nci->conf_filename);
         return VR_ERROR;

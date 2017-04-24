@@ -27,7 +27,7 @@ vr_thread_deinit(vr_thread *thread)
     thread->fun_run = NULL;
     thread->data = NULL;
 }
-
+//线程入口接口
 static void *vr_thread_run(void *data)
 {
     vr_thread *thread = data;

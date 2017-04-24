@@ -62,7 +62,7 @@
 
 /* Config field flags for conf_option struct */
 #define CONF_FIELD_FLAGS_NO_MODIFY  (1<<0)
-
+//
 typedef struct conf_option {
     char    *name;      /* option name */
     int     type;       /* value type */
@@ -88,6 +88,7 @@ typedef enum evictpolicy_type {
 #undef DEFINE_ACTION
 
 typedef struct conf_server {
+    //conftable存储的是conf_option：:
     dict          *ctable;
 
     int           databases;

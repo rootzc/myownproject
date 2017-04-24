@@ -52,11 +52,12 @@ static char* evictpolicy_strings[] = {
 };
 #undef DEFINE_ACTION
 
+//厉害了我的哥，这里初始化用来配置conf_server的操作
 static conf_option conf_server_options[] = {
     { (char *)CONFIG_SOPN_DATABASES,
       CONF_FIELD_TYPE_INT, 1,
       conf_set_int_non_zero, conf_get_int,
-      offsetof(conf_server, databases) },
+      offsetof(conf_server, databases) },   //就是要设置的选项在整个结构体中的偏移
     { (char *)CONFIG_SOPN_IDPDATABASE,
       CONF_FIELD_TYPE_INT, 1,
       conf_set_int_non_zero, conf_get_int,
@@ -285,7 +286,7 @@ conf_set_maxmemory_policy(void *obj, conf_option *opt, void *data)
     CONF_UNLOCK();
     return VR_OK;
 }
-
+//设置配置选项
 int
 conf_set_int_non_zero(void *obj, conf_option *opt, void *data)
 {
@@ -298,7 +299,7 @@ conf_set_int_non_zero(void *obj, conf_option *opt, void *data)
             opt->name);
         return VR_ERROR;
     }
-
+//多线程下可能有多个线程调用该函数
     CONF_WLOCK();
 
     p = obj;
@@ -1202,7 +1203,7 @@ conf_parse_conf_server(conf_server *cs, dict *org)
     if(cs == NULL || org == NULL){
         return VR_ERROR;
     }
-    
+   //依据全局的配置操作数组，并使用内部自制的set函数设置对应的配置选项 
     key = sdsempty();
     for (opt = conf_server_options; opt&&opt->name; opt++) {
         key = sdscpy(key,opt->name);
@@ -1220,7 +1221,7 @@ conf_parse_conf_server(conf_server *cs, dict *org)
     sdsfree(key);
     return VR_OK;
 }
-
+//通过查找配置树配置server
 static int
 conf_parse(vr_conf *cf)
 {
@@ -1232,7 +1233,7 @@ conf_parse(vr_conf *cf)
     if (cf == NULL) {
         return VR_ERROR;
     }
-
+    //得到总树根
     orgs = cf->organizations;
     if (orgs == NULL) {
         return VR_ERROR;
@@ -1240,6 +1241,7 @@ conf_parse(vr_conf *cf)
 
     /* server */
     key = sdsnew(CONF_ORGANIZATION_NAME_SERVER);
+    //找到配置server的子树
     de = dictFind(orgs, key);
     if (de == NULL) {
         log_error("can not find %s organization in conf file %s", 
@@ -1248,13 +1250,14 @@ conf_parse(vr_conf *cf)
         return VR_ERROR;
     }
 
+    //得到子树根
     org = dictGetVal(de);
     if (org == NULL) {
         log_error("dict %s entry value is NULL", dictGetKey(de));
         sdsfree(key);
         return VR_ERROR;
     }
-
+    //解析并配置conf_server
     ret = conf_parse_conf_server(&cf->cserver, org);
     if( ret != VR_OK) {
         log_error("common conf parse error");
@@ -1351,23 +1354,26 @@ conf_create(char *filename)
     if (ret != VR_OK) {
         goto error;
     }
-
+    //记录日志
     conf_organizations_dump(cf);
 
+    //解析配置树到
     /* parse the configuration file */
     ret = conf_parse(cf);
     if (ret != VR_OK) {
         goto error;
     }
 
+    //释放配置树
     /* validate parsed configuration */
     ret = conf_post_validate(cf);
     if (ret != VR_OK) {
         goto error;
     }
-
+    //将vr_conf结构体全部写入到日志
     conf_dump(cf);
 
+    //赋值给全局配置项
     cserver = &cf->cserver;
 
     return cf;

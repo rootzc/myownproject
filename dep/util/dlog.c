@@ -12,6 +12,7 @@
 
 static struct logger logger;
 
+//初始化全局日志单例
 int
 log_init(int level, char *name)
 {

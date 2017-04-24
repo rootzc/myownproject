@@ -61,6 +61,7 @@ void slowlogFreeEntry(void *septr) {
 /* Initialize the slow log. This function should be called a single time
  * at server startup. */
 void slowlogInit(void) {
+    //初始化全局静态读写
     pthread_rwlock_init(&rwlocker,NULL);
     slowlog = dlistCreate();
     slowlog_entry_id = 0;

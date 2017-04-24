@@ -83,7 +83,7 @@ csul_pop(vr_worker *worker)
     
     return su;
 }
-
+//初始化worker线程
 int
 vr_worker_init(vr_worker *worker)
 {
@@ -338,7 +338,7 @@ setup_worker(vr_worker *worker)
     
     return VR_OK;
 }
-
+//thread结构体内的func
 static void *
 worker_thread_run(void *args)
 {
@@ -359,7 +359,7 @@ workers_init(uint32_t worker_count)
     
     csui_freelist = NULL;
     pthread_mutex_init(&csui_freelist_lock, NULL);
-
+    //创建worker的数组
     darray_init(&workers, worker_count, sizeof(vr_worker));
 
     for (idx = 0; idx < worker_count; idx ++) {
