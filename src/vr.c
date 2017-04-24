@@ -30,7 +30,7 @@ static int show_help;
 static int show_version;
 static int test_conf;
 static int daemonize;
-//用于解析字符串命令行
+//用于解析字符串命令行 
 static struct option long_options[] = {
     { "help",           no_argument,        NULL,   'h' },
     { "version",        no_argument,        NULL,   'V' },
@@ -45,41 +45,41 @@ static struct option long_options[] = {
 };
 
 static char short_options[] = "hVtdv:o:c:p:T:";
-
+//创建守护进程
 static rstatus_t
 vr_daemonize(int dump_core)
 {
     rstatus_t status;
     pid_t pid, sid;
     int fd;
-
+    //创建进程
     pid = fork();
     switch (pid) {
     case -1:
         log_error("fork() failed: %s", strerror(errno));
         return VR_ERROR;
-
+    //子进程
     case 0:
         break;
-
+    //父进程退出
     default:
         /* parent terminates */
         _exit(0);
     }
 
     /* 1st child continues and becomes the session leader */
-
+    //成为新的会话组组长
     sid = setsid();
     if (sid < 0) {
         log_error("setsid() failed: %s", strerror(errno));
         return VR_ERROR;
     }
-
+    //设置信号处理函数
     if (signal(SIGHUP, SIG_IGN) == SIG_ERR) {
         log_error("signal(SIGHUP, SIG_IGN) failed: %s", strerror(errno));
         return VR_ERROR;
     }
-
+    //创建第二个子进程？
     pid = fork();
     switch (pid) {
     case -1:
@@ -109,7 +109,7 @@ vr_daemonize(int dump_core)
     umask(0);
 
     /* redirect stdin, stdout and stderr to "/dev/null" */
-
+    //输入输出错误都重定向到/dev/null
     fd = open("/dev/null", O_RDWR);
     if (fd < 0) {
         log_error("open(\"/dev/null\") failed: %s", strerror(errno));
@@ -418,7 +418,7 @@ static bool
 vr_test_conf(struct instance *nci, int test)
 {
     vr_conf *cf;
-
+    //打开配置文件
     cf = conf_create(nci->conf_filename);
     if (cf == NULL) {
         if (test)
@@ -426,7 +426,7 @@ vr_test_conf(struct instance *nci, int test)
                 nci->conf_filename);
         return false;
     }
-
+    //释放配置文件结构体
     conf_destroy(cf);
 
     if (test)
@@ -439,7 +439,7 @@ static int
 vr_pre_run(struct instance *nci)
 {
     int ret;
-
+    //初始化日志：单例模式的日志
     ret = log_init(nci->log_level, nci->log_filename);
     if (ret != VR_OK) {
         return ret;
@@ -447,11 +447,12 @@ vr_pre_run(struct instance *nci)
 
     log_debug(LOG_VERB, "Vire used logfile: %s", nci->conf_filename);
 
+    //测试配置文件：并且本次操作不记录日志
     if (!vr_test_conf(nci, false)) {
         log_error("conf file %s is error", nci->conf_filename);
         return VR_ERROR;
     }
-
+    //守护进程
     if (daemonize) {
         ret = vr_daemonize(1);
         if (ret != VR_OK) {
@@ -459,13 +460,15 @@ vr_pre_run(struct instance *nci)
         }
     }
 
+    //得到进程id
     nci->pid = getpid();
-
+    //设置信号处理函数
     ret = signal_init();
     if (ret != VR_OK) {
         return ret;
     }
 
+    //进程pid文件
     if (nci->pid_filename) {
         ret = vr_create_pidfile(nci);
         if (ret != VR_OK) {
@@ -473,6 +476,7 @@ vr_pre_run(struct instance *nci)
         }
     }
 
+    //redis中的重头戏
     ret = init_server(nci);
     if (ret != VR_OK) {
         return VR_ERROR;
@@ -526,7 +530,7 @@ vr_run(struct instance *nci)
 int
 main(int argc, char **argv)
 {
-    //运行状态
+    //运行状态 typedef int rstatus_t; /* return type */
     rstatus_t status;
     struct instance nci;
 //设置缺省的instance 配置选项
@@ -546,7 +550,7 @@ main(int argc, char **argv)
         }
         exit(0);
     }
-
+    //这里主要加载配置文件
     if (test_conf) {
         if (!vr_test_conf(&nci, true)) {
             exit(1);

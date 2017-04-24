@@ -194,9 +194,9 @@ conf_organizations_dump(vr_conf *cf)
         log_debug(log_level, "organization is NULL");
         return;
     }
-    
+   //创建字典的迭代器 
     di = dictGetIterator(orgs);
-
+    //遍历字典取得每一个
     while((de = dictNext(di)) != NULL){
         name = dictGetKey(de);
         org = dictGetVal(de);
@@ -673,12 +673,19 @@ static void dictDestructor(void *privdata, void *val)
     dictRelease(val);
 }
 
+//组织配置文件的字典类型
 static dictType OrganizationDictType = {
+    //hash函数
     dictSdsHash,                /* hash function */
+    //复制键的函数
     NULL,                       /* key dup */
+    //复制值的函数
     NULL,                       /* val dup */
+    //比较键
     dictSdsKeyCompare,          /* key compare */
+    //摧毁建
     dictSdsDestructor,          /* key destructor */
+    //字典摧毁函数
     dictDestructor              /* val destructor */
 };
 
@@ -691,6 +698,7 @@ static dictType KeyValueDictType = {
     dictConfValueDestructor     /* val destructor */
 };
 
+//命令表
 static dictType ConfTableDictType = {
     dictStrCaseHash,            /* hash function */
     NULL,                       /* key dup */
@@ -759,9 +767,9 @@ static int conf_server_init(conf_server *cs)
     if(cs == NULL){
         return VR_ERROR;
     }
-
+    //创建命令表
     cs->ctable = dictCreate(&ConfTableDictType,NULL);
-
+    //数据库数目-1
     cs->databases = CONF_UNSET_NUM;
     cs->internal_dbs_per_databases = CONF_UNSET_NUM;
     cs->max_time_complexity_limit = CONF_UNSET_NUM;
@@ -905,18 +913,22 @@ static int conf_init(vr_conf *cf)
     if(cf == NULL){
         return VR_ERROR;
     }
-
+    //初始化配置文件名为空
     cf->fname = NULL;
+    //配置文件树也为空
     cf->organizations = NULL;
+    //版本号为0
     cf->version = 0;
+    //初始化读写锁
     pthread_rwlock_init(&cf->rwl, NULL);
     pthread_mutex_init(&cf->flock, NULL);
 
+    //创建配置树
     cf->organizations = dictCreate(&OrganizationDictType, NULL);
     if (cf->organizations == NULL) {
         return VR_ERROR;
     }
-
+    //服务器配置初始化
     conf_server_init(&cf->cserver);
 
     conf = cf;
@@ -1042,31 +1054,38 @@ conf_pre_load_from_string(vr_conf *cf, char *config)
     dictEntry *de;
     sds key = NULL;
     conf_value *cv = NULL;
-
+    //使用换行分割字符串为一组kv
     lines = sdssplitlen(config,strlen(config),"\n",1,&totlines);
 
+    //针对每一行kv进行配置
     for (i = 0; i < totlines; i++) {
         sds *argv;
         int argc;
 
         linenum = i+1;
+        //跳过空白字符
         lines[i] = sdstrim(lines[i]," \t\r\n");
 
         /* Skip comments and blank lines */
+        //跳过注释行
         if (lines[i][0] == '#' || lines[i][0] == '\0') continue;
 
         if (lines[i][0] == '[') {
+            //空白[]
             if (sdslen(lines[i]) <= 2 || lines[i][sdslen(lines[i])-1] == ']') {
                 log_error("Organization name %s in conf file %s error",
                     lines[i], cf->fname);
                 goto loaderr;
             }
             org_name = sdsnewlen(lines[i]+1,sdslen(lines[i])-2);
+            //在配置树中进行查找
             de = dictFind(cf->organizations,org_name);
+            //没找到对应的选项则创建之
             if (de == NULL) {
                 org = dictCreate(&KeyValueDictType, NULL);
                 dictAdd(cf->organizations,org_name,org);
             } else {
+                //
                 org = dictGetVal(de);
                 sdsfree(org_name);
             }
@@ -1075,6 +1094,7 @@ conf_pre_load_from_string(vr_conf *cf, char *config)
         }
 
         /* Split into arguments */
+        //将每一行转化为字符串数组
         argv = sdssplitargs(lines[i],&argc);
         if (argv == NULL) {
             log_error("Unbalanced quotes in configuration line");
@@ -1086,21 +1106,28 @@ conf_pre_load_from_string(vr_conf *cf, char *config)
             sdsfreesplitres(argv,argc);
             continue;
         }
+        //将对应的配置选项转换为小写
         sdstolower(argv[0]);
-
+        
+        //每一个配置块就是一个配置树
         if (org == NULL) {
             org_name = sdsnew("server");
             org = dictCreate(&KeyValueDictType, NULL);
             dictAdd(cf->organizations,org_name,org);
         }
 
+        //避免内存泄漏
         key = argv[0];
         argv[0] = NULL;
         for (j = 1; j < argc; j ++) {
+            //创建键值对
             cv = conf_value_create(CONF_VALUE_TYPE_STRING);
+            //设置值
             cv->value = argv[j];
             argv[j] = NULL;
+            //插入字典
             ret = conf_key_value_insert(org, key, cv);
+            
             if(ret == -1){
                 sdsfreesplitres(argv,argc);
                 sdsfree(key);
@@ -1135,9 +1162,10 @@ conf_pre_validate(vr_conf *cf)
     char buf[CONF_MAX_LINE+1];
 
     /* Load the file content */
+    //将文件内容加载到buf
     if (cf->fname) {
         FILE *fp;
-
+        //配置文件名为-时，配置文件为标准输入
         if (cf->fname[0] == '-' && cf->fname[1] == '\0') {
             fp = stdin;
         } else {
@@ -1147,11 +1175,12 @@ conf_pre_validate(vr_conf *cf)
                 return VR_ERROR;
             }
         }
+        //同redis一样的技法，将配置文件内容读入到缓冲区，然后追加到sds
         while(fgets(buf,CONF_MAX_LINE+1,fp) != NULL)
             config = sdscat(config,buf);
         if (fp != stdin) fclose(fp);
     }
-
+    //将配置文件字符串流转化为配置字典
     ret = conf_pre_load_from_string(cf,config);
     if (ret != VR_OK) {
         sdsfree(config);
@@ -1264,18 +1293,20 @@ conf_open(char *filename)
         log_error("configuration file name is NULL.");
         return NULL;
     }
-
+    //得到文件全路径
     path = getAbsolutePath(filename);
     if (path == NULL) {
         log_error("configuration file name '%s' is error.", filename);
         goto error;
     }
 
+    //分配vr_conf结构体
     cf = dalloc(sizeof(*cf));
     if (cf == NULL) {
         goto error;
     }
 
+    //初始化vr_init结构体
     ret = conf_init(cf);
     if(ret != VR_OK){
         goto error;
@@ -1308,13 +1339,14 @@ conf_create(char *filename)
 {
     int ret;
     vr_conf *cf;
-
+//打开配置文件：初始化各配置
     cf = conf_open(filename);
     if (cf == NULL) {
         return NULL;
     }
 
     /* validate configuration file before parsing */
+    //读取文件创建配置树
     ret = conf_pre_validate(cf);
     if (ret != VR_OK) {
         goto error;

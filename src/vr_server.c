@@ -313,6 +313,7 @@ init_server(struct instance *nci)
     get_random_hex_chars(server.runid, CONFIG_RUN_ID_SIZE);
 
     server.commands = dictCreate(&commandTableDictType,NULL);
+    //照理是将
     populateCommandTable();
     server.delCommand = lookupCommandByCString("del");
     server.multiCommand = lookupCommandByCString("multi");
