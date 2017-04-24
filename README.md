@@ -1,13 +1,4 @@
-# vire
-
-**vire** (pronounced "vip-redis") is a multithread redis(based on redis-3.2.0) maintains in vipshop.
-
-### QQ交流群：276406429
-
-## Dependence
-
-Please install automake, libtool, autoconf and bzip2 at first.
-
+# 
 ## Build
 
 To build vire from source with _debug logs enabled_ and _assertions enabled_:
