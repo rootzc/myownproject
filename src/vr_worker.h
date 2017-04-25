@@ -2,8 +2,9 @@
 #define _VR_WORKER_H_
 
 typedef struct vr_worker {
-
+    //线程在所有线程中的id
     int id;
+    //事件循环
     vr_eventloop vel;
     
     int socketpairs[2];         /*0: belong to master thread, 1: belong to myself*/

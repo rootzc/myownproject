@@ -608,7 +608,7 @@ main(int argc, char **argv)
         }
         exit(0);
     }
-
+    //初始化并发框架
     status = vr_pre_run(&nci);
     if (status != VR_OK) {
         vr_post_run(&nci);

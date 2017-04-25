@@ -1,6 +1,6 @@
 #ifndef _VR_CONNECTION_H_
 #define _VR_CONNECTION_H_
-
+//
 typedef struct conn_base {
     dlist *free_connq;           /* free conn q */
     uint64_t ntotal_conn;       /* total # connections counter from start */

@@ -42,7 +42,7 @@
 #define CONFIG_DEFAULT_REPL_BACKLOG_SIZE (1024*1024)    /* 1mb */
 #define CONFIG_DEFAULT_REPL_BACKLOG_TIME_LIMIT (60*60)  /* 1 hour */
 #define CONFIG_REPL_BACKLOG_MIN_SIZE (1024*16)          /* 16k */
-
+//用于主从复制的结构
 struct vr_replication {
     vr_eventloop vel;
 

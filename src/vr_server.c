@@ -330,7 +330,7 @@ init_server(struct instance *nci)
     //根据配置文件填充并创建配置树,并且设置了conf——server
     conf = conf_create(nci->conf_filename);
 
-    //创建管理员命令表
+    //标记管理员命令表
     ret = populateCommandsNeedAdminpass();
     if (ret != VR_OK) {
         log_error("Populate need adminpass commands failed");
@@ -352,7 +352,7 @@ init_server(struct instance *nci)
    
     //pid文件
     server.pidfile = nci->pid_filename;
-    //是否可执行
+    //生成的可执行文件的全路径
     server.executable = NULL;
     //是否执行rehash
     server.activerehashing = CONFIG_DEFAULT_ACTIVE_REHASHING;
@@ -384,7 +384,7 @@ init_server(struct instance *nci)
     server.rdb_child_pid = -1;
     server.aof_child_pid = -1;
 
-    //
+    //初始化数据结构配置
     server.hash_max_ziplist_entries = OBJ_HASH_MAX_ZIPLIST_ENTRIES;
     server.hash_max_ziplist_value = OBJ_HASH_MAX_ZIPLIST_VALUE;
     server.list_max_ziplist_size = OBJ_LIST_MAX_ZIPLIST_SIZE;
@@ -397,7 +397,7 @@ init_server(struct instance *nci)
     server.notify_keyspace_events = 0;
     //慢查询日志初始化
     slowlogInit();
-    //
+    //初始化主从复制结构体
     vr_replication_init();
     //创建共享对象
     createSharedObjects();

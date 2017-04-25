@@ -1,19 +1,24 @@
 #ifndef _VR_EVENTLOOP_H_
 #define _VR_EVENTLOOP_H_
 
+//线程循环体
 typedef struct vr_eventloop {
-    vr_thread thread;
-
+    //线程的抽象
+     vr_thread thread;
+     //事件循环体
     aeEventLoop *el;
+    //循环执行的频率
     int hz;                     /* cron() calls frequency in hertz */
+    //cron函数执行的次数
     int cronloops;              /* Number of times the cron function run */
     
     /* time cache */
+    //时间缓存
     time_t unixtime;            /* Unix time sampled every cron cycle. */
     long long mstime;           /* Like 'unixtime' but with milliseconds resolution. */
-
+    //lru时间调整
     unsigned lruclock:LRU_BITS; /* Clock for LRU eviction */
-
+    
     conn_base *cb;
 
     uint64_t next_client_id;    /* Next client unique ID. Incremental. */

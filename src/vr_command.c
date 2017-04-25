@@ -218,26 +218,30 @@ void populateCommandTable(void) {
         c->idx = j;
     }
 }
-
+//标记全局命令表中的需要管理员权限的命令标志
 int populateCommandsNeedAdminpass(void) {
-    //创建变态数组的
+    //创建变态数组:存放从配置树中解析到的需要管理员的命令名
     struct darray commands_need_adminpass;
     sds *command_name;
     struct redisCommand *command;
 
     darray_init(&commands_need_adminpass,1,sizeof(sds));
-    //得到对应的配置选项:需要的命令变态数组
+    //得到对应的配置选项:需要管理员权限的的命令名字的变态数组
     conf_server_get(CONFIG_SOPN_COMMANDSNAP,&commands_need_adminpass);
     
     //循环次数为变态数组的元素个数
     while (darray_n(&commands_need_adminpass)) {
+        //弹出每一个需要管理哦员的命令名
         command_name = darray_pop(&commands_need_adminpass);
+        //依据命令名在全局的命令表中查找到对应的命令结构
         command = lookupCommand(*command_name);
+
         if (command == NULL) {
             log_error("Unknow command %s for commands-need-amdminpass",
                 command_name);
             return VR_ERROR;
         }
+        //设置对应的命令标志位管理员权限
         command->needadmin = 1;
         sdsfree(*command_name);
     }
