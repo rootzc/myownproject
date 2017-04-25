@@ -94,7 +94,7 @@ void *dlockqueue_pop(void *q)
     //找到头
     node = dlistFirst(lqueue->l);
     if (node == NULL) {
-        出错
+        //出错
         pthread_mutex_unlock(&lqueue->lmutex);
         return NULL;
     }

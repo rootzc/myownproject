@@ -26,6 +26,8 @@
 //得到系统的cpu个数
 #define VR_THREAD_NUM_DEFAULT	(sysconf(_SC_NPROCESSORS_ONLN)>6?6:sysconf(_SC_NPROCESSORS_ONLN))
 
+static const int SHOWLOG = 1;//打开打印logo
+
 static int show_help;
 static int show_version;
 static int test_conf;
@@ -156,16 +158,15 @@ vr_print_run(struct instance *nci)
 
     status = uname(&name);
 
-    if (nci->log_filename) {
-        char *ascii_logo =
+        char *ascii_logo1 =
 "                                                                                                   \n"         
 "                                                                                                   \n"
-"        ,/  \.                                                  Vire %s %s bit\n"                  "    
-"       |(    )|                                                 Running in %s mode\n"              "   
-"  \\`-._:,\\  /.;_,-'/                                          Port: %d\n                         "
-"   `.\\_`\\')(`/'_/,'                                           PID: %ld\n"                        " 
-"       )/`.,'\\(                                                OS: %s %s %s\n"                    "
-"       |.    ,|                                                 https://github.com/vipshop/vire\n  "
+"        ,/  \\.                                                  Vire %s %s bit                    \n"   
+"       |(    )|                                                 Running in %s mode                 \n"   
+"  \\`-._:,\\  /.;_,-'/                                          Port: %d                           \n"
+"   `.\\_`\\')(`/'_/,'                                           PID: %ld                           \n"
+"       )/`.,'\\(                                                OS: %s %s %s                       \n"
+"       |.    ,|                                                 https://github.com/vipshop/vire    \n"
 "       :6)  (6;                                                                                    \n"
 "        \\`\\ _(\\                                                                                 \n"
 "         \\._'; `.___...---..________...------._                                                   \n"
@@ -187,8 +188,22 @@ vr_print_run(struct instance *nci)
 "                   '-/_(              '--'      /,'                                                \n"
 "                                                                                                  \n\n";
     //打印logo到终端
-    printf()
-
+    if(SHOWLOG)
+    {
+        char *buf = dalloc(1024*16);
+        snprintf(buf,1024*16,ascii_logo1,
+            VR_VERSION_STRING,
+            (sizeof(long) == 8) ? "64" : "32",
+            "standalone", server.port,
+            (long) nci->pid,
+            status < 0 ? " ":name.sysname,
+            status < 0 ? " ":name.release,
+            status < 0 ? " ":name.machine);
+        printf("%s",buf);
+    }
+    if (nci->log_filename) {
+    //printf()
+        char *ascii_logo = ascii_logo1;
 
 #if 0
 /*"           _.-``__ ''-._                                             \n"
@@ -219,6 +234,7 @@ vr_print_run(struct instance *nci)
             status < 0 ? " ":name.sysname,
             status < 0 ? " ":name.release,
             status < 0 ? " ":name.machine);
+        //printf("%s",buf);
         log_write_len(buf, strlen(buf));
         dfree(buf);
     }else {
