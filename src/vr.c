@@ -158,8 +158,39 @@ vr_print_run(struct instance *nci)
 
     if (nci->log_filename) {
         char *ascii_logo =
-"                _._                                                  \n"
-"           _.-``__ ''-._                                             \n"
+"                                                                                                   \n"         
+"                                                                                                   \n"
+"        ,/  \.                                                  Vire %s %s bit\n"                  "    
+"       |(    )|                                                 Running in %s mode\n"              "   
+"  \\`-._:,\\  /.;_,-'/                                          Port: %d\n                         "
+"   `.\\_`\\')(`/'_/,'                                           PID: %ld\n"                        " 
+"       )/`.,'\\(                                                OS: %s %s %s\n"                    "
+"       |.    ,|                                                 https://github.com/vipshop/vire\n  "
+"       :6)  (6;                                                                                    \n"
+"        \\`\\ _(\\                                                                                 \n"
+"         \\._'; `.___...---..________...------._                                                   \n"
+"         \\   |   ,'   .  .     .       .     .`:.                                                 \n"
+"           \\`.' .  .         .   .   .     .   . \\                                               \n"
+"            `.       .   .  \\  .   .   ..::: .    ::                                              \n"
+"              \\ .    .  .   ..::::::::''  ':    . ||                                              \n"
+"               \\   `. :. .:'            \\  '. .   ;;                                             \n"
+"                `._  \\ ::: ;           _,\\  :.  |/(                                              \n"
+"                   `.`::: /--....---''' \\ `. :. :`\`                                              \n"
+"                    | |:':               \\  `. :.\                                                \n"
+"                    | |' ;                \\  (\\  .\\                                             \n"
+"                    | |.:                  \\  \\`.  :                                             \n"
+"                    |.| |                   ) /  :.|                                               \n"
+"                    | |.|                  /./   | |                                               \n"
+"                    |.| |                 / /    | |                                               \n"
+"                    | | |                /./     |.|                                               \n"
+"                    ;_;_;              ,'_/      ;_|                                               \n"
+"                   '-/_(              '--'      /,'                                                \n"
+"                                                                                                  \n\n";
+
+
+
+#if 0
+/*"           _.-``__ ''-._                                             \n"
 "      _.-``    `.  *_.  ''-._           Vire %s %s bit\n"
 "  .-`` .-```.  ```\-/    _.,_ ''-._                                   \n"
 " (    |      |       .-`    `,    )     Running in %s mode\n"
@@ -175,6 +206,9 @@ vr_print_run(struct instance *nci)
 "      `-._    `-.__.-'    _.-'                                       \n"
 "          `-._        _.-'                                           \n"
 "              `-.__.-'                                               \n\n";
+*/
+#endif
+
         char *buf = dalloc(1024*16);
         snprintf(buf,1024*16,ascii_logo,
             VR_VERSION_STRING,
@@ -481,7 +515,7 @@ vr_pre_run(struct instance *nci)
     if (ret != VR_OK) {
         return VR_ERROR;
     }
-
+    //并发模块处理
     vr_print_run(nci);
 
     return VR_OK;
