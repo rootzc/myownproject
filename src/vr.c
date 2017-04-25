@@ -186,7 +186,8 @@ vr_print_run(struct instance *nci)
 "                    ;_;_;              ,'_/      ;_|                                               \n"
 "                   '-/_(              '--'      /,'                                                \n"
 "                                                                                                  \n\n";
-
+    //打印logo到终端
+    printf()
 
 
 #if 0
