@@ -10,7 +10,7 @@
 #include <vr_core.h>
 #include <vr_conf.h>
 #include <vr_signal.h>
-
+//#include "./vr_util.h"
 #define VR_CONF_PATH        "conf/vire.conf"
 
 #define VR_LOG_DEFAULT      LOG_NOTICE
@@ -23,16 +23,16 @@
 #define VR_INTERVAL         (30 * 1000) /* in msec */
 
 #define VR_PID_FILE         NULL
-//得到系统的cpu个数
+
 #define VR_THREAD_NUM_DEFAULT	(sysconf(_SC_NPROCESSORS_ONLN)>6?6:sysconf(_SC_NPROCESSORS_ONLN))
 
-static const int SHOWLOG = 1;//打开打印logo
+const int SHOWIMG = 1;//我自己定义的开关用来显示自己的log:
 
 static int show_help;
 static int show_version;
 static int test_conf;
 static int daemonize;
-//用于解析字符串命令行 
+
 static struct option long_options[] = {
     { "help",           no_argument,        NULL,   'h' },
     { "version",        no_argument,        NULL,   'V' },
@@ -47,41 +47,41 @@ static struct option long_options[] = {
 };
 
 static char short_options[] = "hVtdv:o:c:p:T:";
-//创建守护进程
+
 static rstatus_t
 vr_daemonize(int dump_core)
 {
     rstatus_t status;
     pid_t pid, sid;
     int fd;
-    //创建进程
+
     pid = fork();
     switch (pid) {
     case -1:
         log_error("fork() failed: %s", strerror(errno));
         return VR_ERROR;
-    //子进程
+
     case 0:
         break;
-    //父进程退出
+
     default:
         /* parent terminates */
         _exit(0);
     }
 
     /* 1st child continues and becomes the session leader */
-    //成为新的会话组组长
+
     sid = setsid();
     if (sid < 0) {
         log_error("setsid() failed: %s", strerror(errno));
         return VR_ERROR;
     }
-    //设置信号处理函数
+
     if (signal(SIGHUP, SIG_IGN) == SIG_ERR) {
         log_error("signal(SIGHUP, SIG_IGN) failed: %s", strerror(errno));
         return VR_ERROR;
     }
-    //创建第二个子进程？
+
     pid = fork();
     switch (pid) {
     case -1:
@@ -111,7 +111,7 @@ vr_daemonize(int dump_core)
     umask(0);
 
     /* redirect stdin, stdout and stderr to "/dev/null" */
-    //输入输出错误都重定向到/dev/null
+
     fd = open("/dev/null", O_RDWR);
     if (fd < 0) {
         log_error("open(\"/dev/null\") failed: %s", strerror(errno));
@@ -155,76 +155,68 @@ vr_print_run(struct instance *nci)
 {
     int status;
     struct utsname name;
-
+    
     status = uname(&name);
 
+    //--------------------------------------------------------------
+    //if(SHOWIMG)
+    //{
+        ///
+        //
         char *ascii_logo1 =
-"                                                                                                   \n"         
-"                                                                                                   \n"
-"        ,/  \\.                                                  Vire %s %s bit                    \n"   
-"       |(    )|                                                 Running in %s mode                 \n"   
-"  \\`-._:,\\  /.;_,-'/                                          Port: %d                           \n"
-"   `.\\_`\\')(`/'_/,'                                           PID: %ld                           \n"
-"       )/`.,'\\(                                                OS: %s %s %s                       \n"
-"       |.    ,|                                                 https://github.com/vipshop/vire    \n"
-"       :6)  (6;                                                                                    \n"
-"        \\`\\ _(\\                                                                                 \n"
-"         \\._'; `.___...---..________...------._                                                   \n"
-"         \\   |   ,'   .  .     .       .     .`:.                                                 \n"
-"           \\`.' .  .         .   .   .     .   . \\                                               \n"
-"            `.       .   .  \\  .   .   ..::: .    ::                                              \n"
-"              \\ .    .  .   ..::::::::''  ':    . ||                                              \n"
-"               \\   `. :. .:'            \\  '. .   ;;                                             \n"
-"                `._  \\ ::: ;           _,\\  :.  |/(                                              \n"
-"                   `.`::: /--....---''' \\ `. :. :`\`                                              \n"
-"                    | |:':               \\  `. :.\                                                \n"
-"                    | |' ;                \\  (\\  .\\                                             \n"
-"                    | |.:                  \\  \\`.  :                                             \n"
-"                    |.| |                   ) /  :.|                                               \n"
-"                    | |.|                  /./   | |                                               \n"
-"                    |.| |                 / /    | |                                               \n"
-"                    | | |                /./     |.|                                               \n"
-"                    ;_;_;              ,'_/      ;_|                                               \n"
-"                   '-/_(              '--'      /,'                                                \n"
-"                                                                                                  \n\n";
-    //打印logo到终端
-    if(SHOWLOG)
-    {
-        char *buf = dalloc(1024*16);
-        snprintf(buf,1024*16,ascii_logo1,
-            VR_VERSION_STRING,
-            (sizeof(long) == 8) ? "64" : "32",
-            "standalone", server.port,
-            (long) nci->pid,
-            status < 0 ? " ":name.sysname,
-            status < 0 ? " ":name.release,
-            status < 0 ? " ":name.machine);
-        printf("%s",buf);
-    }
+"                                                         \n \
+        ,/  \\.                                           \n \
+       |(    )|                                           \n \
+  \\`-._:,\\  /.;_,-'/                                    \n \
+   `.\\_`\\')(`/'_/,'                                     \n \ 
+       )/`.,'\\(                                          \n \
+       |.    ,|                                           \n \
+       :6)  (6;                                           \n \
+        \\`\\ _(\\                                        \n \
+         \\._'; `.___...---..________...------._          \n \
+         \\   |   ,'   .  .     .       .     .`:.        \n \
+           \\`.' .  .         .   .   .     .   . \\      \n \
+            `.       .   .  \\  .   .   ..::: .    ::     \n \
+              \\ .    .  .   ..::::::::''  ':    . ||     \n \
+               \\   `. :. .:'            \\  '. .   ;;    \n \
+                `._  \\ ::: ;           _,\  :.  |/(      \n \
+                   `.`::: /--....---''' \\ `. :. :`\\`    \n \
+                    | |:':               \\  `. :.\\      \n \
+                    | |' ;                \\  (\\  .\\    \n \
+                    | |.:                  \\  \\`.  :    \n \
+                    |.| |                   ) /  :.|      \n \
+                    | |.|                  /./   | |      \n \
+                    |.| |                 / /    | |      \n \
+                    | | |                /./     |.|      \n \
+                    ;_;_;              ,'_/      ;_|      \n \
+                   '-/_(              '--'      /,'       \n \
+"  ; 
+	printf("%s",ascii_logo1);
+
+    //}
+    
+//-------------------------------------------------------------
+
     if (nci->log_filename) {
-    //printf()
         char *ascii_logo = ascii_logo1;
-
-#if 0
-/*"           _.-``__ ''-._                                             \n"
-"      _.-``    `.  *_.  ''-._           Vire %s %s bit\n"
-"  .-`` .-```.  ```\-/    _.,_ ''-._                                   \n"
-" (    |      |       .-`    `,    )     Running in %s mode\n"
-" |`-._`-...-` __...-.``-._;'` _.-'|     Port: %d\n"
-" |    `-._   `._    /     _.-'    |     PID: %ld\n"
-"  `-._    `-._  `-./  _.-'    _.-'      OS: %s %s %s\n"
-" |`-._`-._    `-.__.-'    _.-'_.-'|                                  \n"
-" |    `-._`-._        _.-'_.-'    |     https://github.com/vipshop/vire\n"
-"  `-._    `-._`-.__.-'_.-'    _.-'                                   \n"
-" |`-._`-._    `-.__.-'    _.-'_.-'|                                  \n"
-" |    `-._`-._        _.-'_.-'    |                                  \n"
-"  `-._    `-._`-.__.-'_.-'    _.-'                                   \n"
-"      `-._    `-.__.-'    _.-'                                       \n"
-"          `-._        _.-'                                           \n"
-"              `-.__.-'                                               \n\n";
-*/
-#endif
-
+//"                _._                                                  \n"
+//"           _.-``__ ''-._                                             \n"
+//"      _.-``    `.  *_.  ''-._           Vire %s %s bit\n"
+//"  .-`` .-```.  ```\-/    _.,_ ''-._                                   \n"
+//" (    |      |       .-`    `,    )     Running in %s mode\n"
+//" |`-._`-...-` __...-.``-._;'` _.-'|     Port: %d\n"
+//" |    `-._   `._    /     _.-'    |     PID: %ld\n"
+//"  `-._    `-._  `-./  _.-'    _.-'      OS: %s %s %s\n"
+//" |`-._`-._    `-.__.-'    _.-'_.-'|                                  \n"
+//" |    `-._`-._        _.-'_.-'    |     https://github.com/vipshop/vire\n"
+//"  `-._    `-._`-.__.-'_.-'    _.-'                                   \n"
+//" |`-._`-._    `-.__.-'    _.-'_.-'|                                  \n"
+//" |    `-._`-._        _.-'_.-'    |                                  \n"
+//"  `-._    `-._`-.__.-'_.-'    _.-'                                   \n"
+//"      `-._    `-.__.-'    _.-'                                       \n"
+//"          `-._        _.-'                                           \n"
+//"              `-.__.-'                                               \n\n";
+    //printf("%s",ascii_logo);
         char *buf = dalloc(1024*16);
         snprintf(buf,1024*16,ascii_logo,
             VR_VERSION_STRING,
@@ -234,7 +226,6 @@ vr_print_run(struct instance *nci)
             status < 0 ? " ":name.sysname,
             status < 0 ? " ":name.release,
             status < 0 ? " ":name.machine);
-        //printf("%s",buf);
         log_write_len(buf, strlen(buf));
         dfree(buf);
     }else {
@@ -328,28 +319,23 @@ static void
 vr_set_default_options(struct instance *nci)
 {
     int status;
-    //日志等级为可见
+
     nci->log_level = VR_LOG_DEFAULT;
-    //日志文件路径:NULL
     nci->log_filename = VR_LOG_PATH;
-    //配置文件名："conf/vire.conf
+
     nci->conf_filename = VR_CONF_PATH;
-    //设置主机名:主机名称长度最长为256,调用了一个封装了底层函数gethostname的宏
+
     status = vr_gethostname(nci->hostname, VR_MAXHOSTNAMELEN);
-    //判断出错记录日志
     if (status < 0) {
         log_warn("gethostname failed, ignored: %s", strerror(errno));
         dsnprintf(nci->hostname, VR_MAXHOSTNAMELEN, "unknown");
     }
-    //向主机名数组末尾添加‘0’，
     nci->hostname[VR_MAXHOSTNAMELEN - 1] = '\0';
-    //进程id为-1
+
     nci->pid = (pid_t)-1;
-    //pid文件名
     nci->pid_filename = NULL;
-    //pid文件创建标志
     nci->pidfile = 0;
-    //线程数目为6或者cpu个数
+
     nci->thread_num = (int)VR_THREAD_NUM_DEFAULT;
 }
 
@@ -361,26 +347,12 @@ vr_get_options(int argc, char **argv, struct instance *nci)
     opterr = 0;
 
     for (;;) {
-        //调用api解析命令行
-        //static char short_options[] = "hVtdv:o:c:p:T:";
-            //static struct option long_options[] = {
-            //    { "help",           no_argument,        NULL,   'h' },
-            //    { "version",        no_argument,        NULL,   'V' },
-            //    { "test-conf",      no_argument,        NULL,   't' },
-            //    { "daemonize",      no_argument,        NULL,   'd' },
-            //    { "verbose",        required_argument,  NULL,   'v' },
-            //    { "output",         required_argument,  NULL,   'o' },
-            //    { "conf-file",      required_argument,  NULL,   'c' },
-            //    { "pid-file",       required_argument,  NULL,   'p' },
-            //    { "thread-num",     required_argument,  NULL,   'T' },
-            //    { NULL,             0,                  NULL,    0  }
-            //};
         c = getopt_long(argc, argv, short_options, long_options, NULL);
         if (c == -1) {
             /* no more options */
             break;
         }
-        //根据解析的结果设置对应的字符串标记
+
         switch (c) {
         case 'h':
             show_version = 1;
@@ -400,7 +372,6 @@ vr_get_options(int argc, char **argv, struct instance *nci)
             break;
 
         case 'v':
-            //optarg为库函数的全局变量，其指向当前选项的参数
             value = vr_atoi(optarg, strlen(optarg));
             if (value < 0) {
                 log_stderr("vire: option -v requires a number");
@@ -469,7 +440,7 @@ static bool
 vr_test_conf(struct instance *nci, int test)
 {
     vr_conf *cf;
-    //打开配置文件:创建配置树
+
     cf = conf_create(nci->conf_filename);
     if (cf == NULL) {
         if (test)
@@ -477,7 +448,7 @@ vr_test_conf(struct instance *nci, int test)
                 nci->conf_filename);
         return false;
     }
-    //释放配置文件结构体
+
     conf_destroy(cf);
 
     if (test)
@@ -490,7 +461,7 @@ static int
 vr_pre_run(struct instance *nci)
 {
     int ret;
-    //初始化日志：单例模式的日志
+
     ret = log_init(nci->log_level, nci->log_filename);
     if (ret != VR_OK) {
         return ret;
@@ -498,12 +469,11 @@ vr_pre_run(struct instance *nci)
 
     log_debug(LOG_VERB, "Vire used logfile: %s", nci->conf_filename);
 
-    //测试加载配置文件：并且本次操作不记录日志
     if (!vr_test_conf(nci, false)) {
         log_error("conf file %s is error", nci->conf_filename);
         return VR_ERROR;
     }
-    //守护进程
+
     if (daemonize) {
         ret = vr_daemonize(1);
         if (ret != VR_OK) {
@@ -511,15 +481,13 @@ vr_pre_run(struct instance *nci)
         }
     }
 
-    //得到进程id
     nci->pid = getpid();
-    //设置信号处理函数
+
     ret = signal_init();
     if (ret != VR_OK) {
         return ret;
     }
 
-    //进程pid文件
     if (nci->pid_filename) {
         ret = vr_create_pidfile(nci);
         if (ret != VR_OK) {
@@ -527,12 +495,11 @@ vr_pre_run(struct instance *nci)
         }
     }
 
-    //redis中的重头戏
     ret = init_server(nci);
     if (ret != VR_OK) {
         return VR_ERROR;
     }
-    //并发模块处理
+
     vr_print_run(nci);
 
     return VR_OK;
@@ -581,27 +548,25 @@ vr_run(struct instance *nci)
 int
 main(int argc, char **argv)
 {
-    //运行状态 typedef int rstatus_t; /* return type */
     rstatus_t status;
     struct instance nci;
-//设置缺省的instance 配置选项
+
     vr_set_default_options(&nci);
-//解析命令行参数，并设置对应的标记值
+
     status = vr_get_options(argc, argv, &nci);
     if (status != VR_OK) {
         vr_show_usage();
         exit(1);
     }
-//根据上一步解析的命令行参数设置的标志启动函数
+
     if (show_version) {
         log_stderr("This is vire-%s" CRLF, VR_VERSION_STRING);
-        //打印使用方法
         if (show_help) {
             vr_show_usage();
         }
         exit(0);
     }
-    //这里主要加载配置文件
+
     if (test_conf) {
         if (!vr_test_conf(&nci, true)) {
             exit(1);

@@ -3,7 +3,7 @@
 
 #include <vr_core.h>
 #include <vr_signal.h>
-
+//定义对应的信号数组
 static struct signal signals[] = {
     { SIGUSR1, "SIGUSR1", 0,                 signal_handler },
     { SIGUSR2, "SIGUSR2", 0,                 signal_handler },

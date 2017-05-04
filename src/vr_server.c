@@ -8,6 +8,7 @@ struct vr_server server; /* server global state */
 /* Our shared "common" objects */
 struct sharedObjectsStruct shared;
 
+//hash函数
 unsigned int
 dictStrHash(const void *key) {
     return dictGenHashFunction((unsigned char*)key, strlen((char*)key));
@@ -27,7 +28,7 @@ unsigned int
 dictSdsCaseHash(const void *key) {
     return dictGenCaseHashFunction((unsigned char*)key, sdslen((char*)key));
 }
-
+//字符串比较函数
 int
 dictStrKeyCompare(void *privdata, const void *key1,
         const void *key2)
@@ -166,7 +167,7 @@ dictListDestructor(void *privdata, void *val)
     DICT_NOTUSED(privdata);
     dlistRelease((dlist*)val);
 }
-
+//一些结构的操作表
 /* Hash type hash table (note that small hashes are represented with ziplists) */
 dictType hashDictType = {
     dictEncObjHash,             /* hash function */
@@ -199,6 +200,8 @@ dictType zsetDictType = {
 
 /* =========================== Server initialization ======================== */
 
+
+//创建共享对象
 static void createSharedObjects(void) {
     int j;
     robj **obj;
@@ -300,26 +303,23 @@ static void createSharedObjects(void) {
     }
 }
 
+//初始化服务器
 int
 init_server(struct instance *nci)
 {
     int ret;
     uint32_t i;
     redisDb *db;
-   
-//server结构体的pid
+    
     server.pid = getpid();
-    //64位机器还是32位机器
     server.arch_bits = (sizeof(long) == 8) ? 64 : 32;
-    //开始时间
     server.starttime = time(NULL);
-    //runid用于集群中
     get_random_hex_chars(server.runid, CONFIG_RUN_ID_SIZE);
-    //创建空的命令表
+
     server.commands = dictCreate(&commandTableDictType,NULL);
-    //使用vr.c头部的静态数组创建命令表
+    //创建命令表    
     populateCommandTable();
-    // 常用命令的快捷键
+    //创建经常使用的命令的缓存    
     server.delCommand = lookupCommandByCString("del");
     server.multiCommand = lookupCommandByCString("multi");
     server.lpushCommand = lookupCommandByCString("lpush");
@@ -327,47 +327,38 @@ init_server(struct instance *nci)
     server.rpopCommand = lookupCommandByCString("rpop");
     server.sremCommand = lookupCommandByCString("srem");
     server.execCommand = lookupCommandByCString("exec");
-    //根据配置文件填充并创建配置树,并且设置了conf——server
+
+    //创建配置树
     conf = conf_create(nci->conf_filename);
 
-    //创建管理员命令表
+    //将命令表中的命令做一些管理员权限的标志
     ret = populateCommandsNeedAdminpass();
     if (ret != VR_OK) {
         log_error("Populate need adminpass commands failed");
         return VR_ERROR;
     }
 
-    //设置配置文件名
     server.configfile = getAbsolutePath(nci->conf_filename);
-    //服务器频率。可能用与高可用以及集群
     server.hz = 10;
-    //逻辑数据库
     server.dblnum = cserver->databases;
-    //这里设计每个逻辑数据库中物理数据库的容量，cserver应该是在conf_create中创建
     server.dbinum = cserver->internal_dbs_per_databases;
-    //总的物理数据库的数目
     server.dbnum = server.dblnum*server.dbinum;
-    //使用变态数组创建数据库
     darray_init(&server.dbs, server.dbnum, sizeof(redisDb));
-   
-    //pid文件
     server.pidfile = nci->pid_filename;
-    //是否可执行
     server.executable = NULL;
-    //是否执行rehash
     server.activerehashing = CONFIG_DEFAULT_ACTIVE_REHASHING;
-    //客户端查询缓存最大长度
+    
     server.client_max_querybuf_len = PROTO_MAX_QUERYBUF_LEN;
-    //初始化每一个数据库
+
     for (i = 0; i < server.dbnum; i ++) {
         db = darray_push(&server.dbs);
         redisDbInit(db);
     }
-    //创建客户端链表
+
     server.clients = dlistCreate();
-    //创建监控链表
+    
     server.monitors = dlistCreate();
-    //
+
     server.loading = 0;
 
     server.lua_timedout = 0;
@@ -375,16 +366,14 @@ init_server(struct instance *nci)
     server.aof_state = AOF_OFF;
 
     server.stop_writes_on_bgsave_err = 0;
-    //等待的key
+
     server.ready_keys = dlistCreate();
-    
+
     server.system_memory_size = dalloc_get_memory_size();
 
-    //rdb和aof操作都是单独的子进程
     server.rdb_child_pid = -1;
     server.aof_child_pid = -1;
 
-    //
     server.hash_max_ziplist_entries = OBJ_HASH_MAX_ZIPLIST_ENTRIES;
     server.hash_max_ziplist_value = OBJ_HASH_MAX_ZIPLIST_VALUE;
     server.list_max_ziplist_size = OBJ_LIST_MAX_ZIPLIST_SIZE;
@@ -395,17 +384,14 @@ init_server(struct instance *nci)
     server.hll_sparse_max_bytes = CONFIG_DEFAULT_HLL_SPARSE_MAX_BYTES;
 
     server.notify_keyspace_events = 0;
-    //慢查询日志初始化
+
     slowlogInit();
-    //
     vr_replication_init();
-    //创建共享对象
+    
     createSharedObjects();
-    //监听的端口
+
     server.port = cserver->port;
-  
-    //初始化worker线程
-    //________________________________________________________________________________  
+    
     /* Init worker first */
     ret = workers_init(nci->thread_num);
     if (ret != VR_OK) {
@@ -413,7 +399,6 @@ init_server(struct instance *nci)
         return VR_ERROR;
     }
 
-    //初始化master线程
     /* Init master after worker init */
     ret = master_init(conf);
     if (ret != VR_OK) {
@@ -421,7 +406,6 @@ init_server(struct instance *nci)
         return VR_ERROR;
     }
 
-    //初始化后台线程
     ret = backends_init(1);
     if (ret != VR_OK) {
         log_error("Init backend threads failed");

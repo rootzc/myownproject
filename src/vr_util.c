@@ -1078,25 +1078,20 @@ void bytesToHuman(char *s, unsigned long long n) {
  * The function does not try to normalize everything, but only the obvious
  * case of one or more "../" appearning at the start of "filename"
  * relative path. */
- //给定文件名，得到全路径，
 sds getAbsolutePath(char *filename) {
     char cwd[1024];
     sds abspath;
     sds relpath = sdsnew(filename);
-    //跳过空字符
+
     relpath = sdstrim(relpath," \r\n\t");
-    //已经是全路径：从根开始的
     if (relpath[0] == '/') return relpath; /* Path is already absolute. */
 
-    //获取当前的工作目录
     /* If path is relative, join cwd and relative path. */
     if (getcwd(cwd,sizeof(cwd)) == NULL) {
         sdsfree(relpath);
         return NULL;
     }
-    //相对目录
     abspath = sdsnew(cwd);
-    //添加相对目录与 /
     if (sdslen(abspath) && abspath[sdslen(abspath)-1] != '/')
         abspath = sdscat(abspath,"/");
 
@@ -1106,17 +1101,14 @@ sds getAbsolutePath(char *filename) {
      *
      * For every "../" we find in the filename, we remove it and also remove
      * the last element of the cwd, unless the current cwd is "/". */
-    //剔除。
     while (sdslen(relpath) >= 3 &&
            relpath[0] == '.' && relpath[1] == '.' && relpath[2] == '/')
     {
-        //得到文件名去掉../
         sdsrange(relpath,3,-1);
         if (sdslen(abspath) > 1) {
-            //这就说明得到了绝对路径的 '/'之前
             char *p = abspath + sdslen(abspath)-2;
             int trimlen = 1;
-            //向上跳一层目录
+
             while(*p != '/') {
                 p--;
                 trimlen++;

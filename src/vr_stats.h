@@ -4,14 +4,14 @@
 #if 1
 #define STATS_ATOMIC_FIRST 1
 #endif
-
+//一些统计信息
 /* Instantaneous metrics tracking. */
 #define STATS_METRIC_SAMPLES 16     /* Number of samples per metric. */
 #define STATS_METRIC_COMMAND 0      /* Number of commands executed. */
 #define STATS_METRIC_NET_INPUT 1    /* Bytes read to network .*/
 #define STATS_METRIC_NET_OUTPUT 2   /* Bytes written to network. */
 #define STATS_METRIC_COUNT 3
-
+//统计信息
 typedef struct vr_stats {
     /* Fields used only for stats */
     time_t starttime;          /* Server start time */

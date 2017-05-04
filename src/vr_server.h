@@ -1,19 +1,23 @@
 #ifndef _VR_SERVER_H_
 #define _VR_SERVER_H_
-
+//最少的保留打开文件描述符的数量
 #define CONFIG_MIN_RESERVED_FDS 32 /* For extra operations of
                                             * listening sockets, log files and so forth*/
-
+//验证的密码最大长度
 #define CONFIG_AUTHPASS_MAX_LEN 512
+//
 #define PROTO_SHARED_SELECT_CMDS 10
 #define CRON_DBS_PER_CALL 16
 
+
+//查找过期键的次数20
 #define ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP 20 /* Loopkups per loop. */
 #define ACTIVE_EXPIRE_CYCLE_FAST_DURATION 1000 /* Microseconds */
 #define ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC 25 /* CPU max % for keys collection */
 #define ACTIVE_EXPIRE_CYCLE_SLOW 0
 #define ACTIVE_EXPIRE_CYCLE_FAST 1
 
+//
 #define SCAN_TYPE_KEY   0
 #define SCAN_TYPE_HASH  1
 #define SCAN_TYPE_SET   2
@@ -72,64 +76,69 @@
  * also called ready_keys in every structure representing a Redis database,
  * where we make sure to remember if a given key was already added in the
  * server.ready_keys list. */
+//阻塞的键得到数据的就绪队列
 typedef struct readyList {
     redisDb *db;
     robj *key;
 } readyList;
-
+//服务器
 struct vr_server {
-    aeEventLoop *el;
-    dlist *clients;
+    aeEventLoop *el;            //封了epoll的事件库
+    dlist *clients;             //客户端列表
     
     /* General */
-    pid_t pid;                  /* Main process pid. */
-    char *executable;           /* Absolute executable file path. */
-    char *configfile;           /* Absolute config file path, or NULL */
-    int hz;                     /* serverCron() calls frequency in hertz */
+    pid_t pid;                  /* Main process pid. */                                 //主进程pid
+    char *executable;           /* Absolute executable file path. */                    //可运行程序的全路径
+    char *configfile;           /* Absolute config file path, or NULL */                //配置文件的全路径
+    int hz;                     /* serverCron() calls frequency in hertz */             //周期执行函数的频率
 
-    struct darray dbs;           /* database array, type: redisDB */
-    int dbnum;                  /* Total number of DBs */
-    int dblnum;                 /* Logical number of configured DBs */
-    int dbinum;                 /* Number of internal DBs for per logical DB */
+    struct darray dbs;           /* database array, type: redisDB */                    //数据库
+    int dbnum;                  /* Total number of DBs */                               //总数据库数目
+    int dblnum;                 /* Logical number of configured DBs */                  //逻辑数据库的数目
+    int dbinum;                 /* Number of internal DBs for per logical DB */         //每一个逻辑数据内的物理数据库
     
-    dict *commands;             /* Command table */
-    dict *orig_commands;        /* Command table before command renaming. */
+    dict *commands;             /* Command table */                                     //命令表
+    dict *orig_commands;        /* Command table before command renaming. */            //重命名前的命令表
     
-    unsigned lruclock:LRU_BITS; /* Clock for LRU eviction */
-    int activerehashing;        /* Incremental rehash in serverCron() */
+    unsigned lruclock:LRU_BITS; /* Clock for LRU eviction */                            //lru时钟
+    int activerehashing;        /* Incremental rehash in serverCron() */                //rehash开始标志
 
-    char *pidfile;              /* PID file path */
-    int arch_bits;              /* 32 or 64 depending on sizeof(long) */
-    char runid[CONFIG_RUN_ID_SIZE+1];  /* ID always different at every exec. */
+    char *pidfile;              /* PID file path */                                     //pid文件路径
+    int arch_bits;              /* 32 or 64 depending on sizeof(long) */                //系统架构
+    char runid[CONFIG_RUN_ID_SIZE+1];  /* ID always different at every exec. */         //每一次运行起来的runid用于集群中标记不同主机
     
     /* Networking */
-    int port;                   /* TCP listening port */
-    int tcp_backlog;            /* TCP listen() backlog */
-
-    int tcpkeepalive;               /* Set SO_KEEPALIVE if non-zero. */
-    size_t client_max_querybuf_len; /* Limit for client query buffer length */
-
-    /* Zip structure config, see redis.conf for more information  */
+    int port;                   /* TCP listening port */                        //端口号
+    int tcp_backlog;            /* TCP listen() backlog */                      //监听队列长度
+    
+    int tcpkeepalive;               /* Set SO_KEEPALIVE if non-zero. */         //keepalive开关
+    size_t client_max_querybuf_len; /* Limit for client query buffer length */  //查询缓冲区的最大长度
+    
+    //ziplist的配置
+    /* Zip structure config, see redis.conf for more information  */        
     size_t hash_max_ziplist_entries;
     size_t hash_max_ziplist_value;
     size_t set_max_intset_entries;
     size_t zset_max_ziplist_entries;
     size_t zset_max_ziplist_value;
     size_t hll_sparse_max_bytes;
+    
     /* List parameters */
     int list_max_ziplist_size;
     int list_compress_depth;
     
+    //limits类似于linux的limits数组
     clientBufferLimitsConfig client_obuf_limits[CLIENT_TYPE_OBUF_COUNT];
-
+    //监控队列
     dlist *monitors;    /* List of slaves and MONITORs */
-
+    //服务器的开始时间
     time_t starttime;       /* Server start time */
 
-    /* time cache */
+    /* 时间缓存*/
     time_t unixtime;        /* Unix time sampled every cron cycle. */
     long long mstime;       /* Like 'unixtime' but with milliseconds resolution. */
 
+    //unixisocket路径
     char *unixsocket;           /* UNIX socket path */
 
     /* RDB / AOF loading information */
@@ -214,26 +223,33 @@ struct vr_server {
     int lua_always_replicate_commands; /* Default replication type. */
 
     /* Blocked clients */
+    //就绪队列
     dlist *ready_keys;        /* List of readyList structures for BLPOP & co */
 
     /* Propagation of commands in AOF / replication */
     redisOpArray also_propagate;    /* Additional command to propagate. */
 
     /* Pubsub */
+    //订阅频道
     dict *pubsub_channels;  /* Map channels to list of subscribed clients */
+    //一个频道内的
     dlist *pubsub_patterns;  /* A list of pubsub_patterns */
+    //键通知的类型标志
     int notify_keyspace_events; /* Events to propagate via Pub/Sub. This is an
                                    xor of NOTIFY_... flags. */
 
     /* Fast pointers to often looked up command */
+    //常用命令的缓存
     struct redisCommand *delCommand, *multiCommand, *lpushCommand, *lpopCommand,
                         *rpopCommand, *sremCommand, *execCommand;
 
     /* System hardware info */
+    //总共使用的内存
     size_t system_memory_size;  /* Total memory in system as reported by OS */
 };
 
 /* ZSETs use a specialized version of Skiplists */
+//跳跃表节点
 typedef struct zskiplistNode {
     robj *obj;
     double score;
@@ -243,19 +259,20 @@ typedef struct zskiplistNode {
         unsigned int span;
     } level[];
 } zskiplistNode;
-
+//跳跃表
 typedef struct zskiplist {
     struct zskiplistNode *header, *tail;
     unsigned long length;
     int level;
 } zskiplist;
-
+//压缩集合
 typedef struct zset {
     dict *dict;
     zskiplist *zsl;
 } zset;
 
 /* Structure to hold list iteration abstraction. */
+//迭代器？
 typedef struct {
     robj *subject;
     unsigned char encoding;
@@ -264,12 +281,14 @@ typedef struct {
 } listTypeIterator;
 
 /* Structure for an entry while iterating over a list. */
+//
 typedef struct {
     listTypeIterator *li;
     quicklistEntry entry; /* Entry in quicklist */
 } listTypeEntry;
 
 /* Structure to hold set iteration abstraction. */
+//set的迭代器
 typedef struct {
     robj *subject;
     int encoding;
@@ -281,6 +300,7 @@ typedef struct {
  * hashes involves both fields and values. Because it is possible that
  * not both are required, store pointers in the iterator to avoid
  * unnecessary memory allocation for fields/values. */
+//hash迭代器
 typedef struct {
     robj *subject;
     int encoding;
@@ -291,6 +311,7 @@ typedef struct {
     dictEntry *de;
 } hashTypeIterator;
 
+//共享对象
 struct sharedObjectsStruct {
     robj *crlf, *ok, *err, *emptybulk, *czero, *cone, *cnegone, *pong, *space,
     *colon, *nullbulk, *nullmultibulk, *queued,
@@ -308,14 +329,19 @@ struct sharedObjectsStruct {
     *sentinel;  /* NULL pointer */
 };
 
-
+//全局server结构体
 extern struct vr_server server;
+//共享对象
 extern struct sharedObjectsStruct shared;;
+//hash字典
 extern dictType hashDictType;
+//集合
 extern dictType setDictType;
+//压缩集合
 extern dictType zsetDictType;
-
+//服务器中断
 #define serverPanic(_e) _log(__FILE__, __LINE__, LOG_EMERG, 1, "assert faild: %s", #_e)
+//
 #define serverAssertWithInfo(_c,_o,_e) ((_e)?(void)0 : (_log(__FILE__, __LINE__, LOG_EMERG, 1, "assert faild: %s", #_e)))
 
 unsigned int dictStrHash(const void *key);

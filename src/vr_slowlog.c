@@ -1,7 +1,9 @@
 #include <vr_core.h>
-
+//读写锁
 static pthread_rwlock_t rwlocker;
+//慢查询链表:就是将查询时间超过配置后将对应的命令，参数构造成slowlogentry节点，然后插入到slowlog链表
 static dlist *slowlog;                  /* SLOWLOG list of commands */
+
 static long long slowlog_entry_id;     /* SLOWLOG current entry ID */
 
 /* Create a new slowlog entry.
@@ -61,7 +63,6 @@ void slowlogFreeEntry(void *septr) {
 /* Initialize the slow log. This function should be called a single time
  * at server startup. */
 void slowlogInit(void) {
-    //初始化全局静态读写
     pthread_rwlock_init(&rwlocker,NULL);
     slowlog = dlistCreate();
     slowlog_entry_id = 0;

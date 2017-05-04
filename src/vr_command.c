@@ -182,16 +182,14 @@ struct redisCommand redisCommandTable[] = {
 /* Populates the Redis Command Table starting from the hard coded list
  * we have on top of redis.c file. */
 void populateCommandTable(void) {
-    //根据静态数组创建命令表
     int j;
     int numcommands = sizeof(redisCommandTable)/sizeof(struct redisCommand);
 
     for (j = 0; j < numcommands; j++) {
-        //得到对应下标的命令结构体
         struct redisCommand *c = redisCommandTable+j;
-        //根据字符串标志设置对应的位标志
         char *f = c->sflags;
         int retval1;
+
         while(*f != '\0') {
             switch(*f) {
             case 'w': c->flags |= CMD_WRITE; break;
@@ -211,7 +209,7 @@ void populateCommandTable(void) {
             }
             f++;
         }
-        //将命令名称于对应的结构体hash到字典中
+    
         retval1 = dictAdd(server.commands, sdsnew(c->name), c);
         ASSERT(retval1 == DICT_OK);
 
@@ -220,16 +218,12 @@ void populateCommandTable(void) {
 }
 
 int populateCommandsNeedAdminpass(void) {
-    //创建变态数组的
     struct darray commands_need_adminpass;
     sds *command_name;
     struct redisCommand *command;
 
     darray_init(&commands_need_adminpass,1,sizeof(sds));
-    //得到对应的配置选项:需要的命令变态数组
     conf_server_get(CONFIG_SOPN_COMMANDSNAP,&commands_need_adminpass);
-    
-    //循环次数为变态数组的元素个数
     while (darray_n(&commands_need_adminpass)) {
         command_name = darray_pop(&commands_need_adminpass);
         command = lookupCommand(*command_name);

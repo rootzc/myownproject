@@ -1,5 +1,6 @@
 #include <vr_core.h>
 
+//初始化线程
 int
 vr_thread_init(vr_thread *thread)
 {    
@@ -14,7 +15,7 @@ vr_thread_init(vr_thread *thread)
 
     return VR_OK;
 }
-
+//线程析构
 void
 vr_thread_deinit(vr_thread *thread)
 {
@@ -27,7 +28,8 @@ vr_thread_deinit(vr_thread *thread)
     thread->fun_run = NULL;
     thread->data = NULL;
 }
-//线程入口接口
+
+//线程运行
 static void *vr_thread_run(void *data)
 {
     vr_thread *thread = data;
@@ -36,6 +38,7 @@ static void *vr_thread_run(void *data)
     thread->fun_run(thread->data);
 }
 
+//线程开始运行
 int vr_thread_start(vr_thread *thread)
 {
     pthread_attr_t attr;
@@ -44,7 +47,7 @@ int vr_thread_start(vr_thread *thread)
     if (thread == NULL || thread->fun_run == NULL) {
         return VR_ERROR;
     }
-
+    //创建新线程并且开始运行
     pthread_create(&thread->thread_id, 
         &attr, vr_thread_run, thread);
 

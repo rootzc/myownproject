@@ -54,7 +54,6 @@
  * Wrapper to workaround well known, safe, implicit type conversion when
  * invoking system calls.
  */
-//用宏封装了c系统调用
 #define vr_gethostname(_name, _len) \
     gethostname((char *)_name, (size_t)_len)
 
