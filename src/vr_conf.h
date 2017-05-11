@@ -72,6 +72,7 @@ typedef struct conf_option {
     int     offset;     /* offset of this option field in the struct  */
 }conf_option;
 
+//过期删除键的策略
 #define EVICTPOLICY_CODEC(ACTION)                           \
     ACTION( MAXMEMORY_VOLATILE_LRU,     volatile-lru)       \
     ACTION( MAXMEMORY_VOLATILE_RANDOM,  volatile-random)    \
@@ -88,42 +89,58 @@ typedef enum evictpolicy_type {
 #undef DEFINE_ACTION
 
 typedef struct conf_server {
+    //命令表
     dict          *ctable;
-
+    //数据库数目
     int           databases;
+    //物理数据库数量
     int           internal_dbs_per_databases;
 
     /* Limits */
+    //各种资源限制
     long long     max_time_complexity_limit;
+    //内存限制
     long long     maxmemory;            /* Max number of memory bytes to use */
+    //键过期策略
     int           maxmemory_policy;     /* Policy for key eviction */
     int           maxmemory_samples;    /* Pricision of random sampling */
+    //最大客户端数目
     int           maxclients;           /* Max number of simultaneous clients */
-
+    //worker线程数目
     int           threads;
 
+    //绑定的server地址
     struct darray  binds;                /* Type: sds */
+    //端口号
     int           port;
-
+    //目录？
     sds           dir;
-
+    //慢查询日志的阀值
     long long     slowlog_log_slower_than;  /* SLOWLOG time limit (to get logged) */
+    //慢查询链表的最大长度
     int           slowlog_max_len;      /* SLOWLOG max number of items logged */
 
+    //auth命令
     sds           requirepass;          /* Pass for AUTH command, or NULL */
+    //admin命令
     sds           adminpass;            /* Pass for ADMIN command, or NULL */
     struct darray  commands_need_adminpass;
 } conf_server;
 
+//
 typedef struct vr_conf {
+    //文件名
     sds           fname;             /* file name , absolute path */
-
+    //配置树
     dict          *organizations;    /* organizations */
-
+    
+    //服务器端配置
     conf_server   cserver;
-
+    //版本号
     unsigned long long version;      /* config version */
+    //读写锁
     pthread_rwlock_t rwl;            /* config read write lock */
+    //配置文件的文件爱呢锁
     pthread_mutex_t flock;           /* config file lock */
 }vr_conf;
 
@@ -131,6 +148,7 @@ typedef struct vr_conf {
 #define CONF_VALUE_TYPE_STRING   1
 #define CONF_VALUE_TYPE_ARRAY    2
 
+//配置选项的值
 typedef struct conf_value{
     int     type;
     void    *value;
@@ -138,17 +156,19 @@ typedef struct conf_value{
 
 /* Config option used multi times for every loop, 
  * so we cache them here in the cron function. */
+//配置选项的缓存？
 typedef struct conf_cache {
-    unsigned long long cache_version;
+    unsigned long long cache_version;//缓存的版本
 
-    int maxclients;
-    sds requirepass;
-    sds adminpass;
-    long long maxmemory;
-    long long max_time_complexity_limit;
-    long long slowlog_log_slower_than;
+    int maxclients;//最大客户端数
+    sds requirepass; //auth
+    sds adminpass; //admin命令
+    long long maxmemory;//最大的内存限制
+    long long max_time_complexity_limit; //
+    long long slowlog_log_slower_than; //慢查询日志的链表长度限制
 }conf_cache;
 
+//两个全局的配置
 extern vr_conf *conf;
 extern conf_server *cserver;
 

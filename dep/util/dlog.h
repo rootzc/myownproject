@@ -4,14 +4,19 @@
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
-//用于积累
+//用于日志记录
 struct logger {
+    //日志文件名
     char *name;  /* log file name */
+    //日志等级
     int  level;  /* log level */
+    //文件描述符
     int  fd;     /* log file descriptor */
+    //错误数量
     int  nerror; /* # log error */
 };
 
+//日志等级
 #define LOG_EMERG   0   /* system in unusable */
 #define LOG_ALERT   1   /* action must be taken immediately */
 #define LOG_CRIT    2   /* critical conditions */
@@ -25,6 +30,7 @@ struct logger {
 #define LOG_VVVERB  10  /* verbose messages on ganga */
 #define LOG_PVERB   11  /* periodic verbose messages on crack */
 
+#define LOG_ZC 12 /*我自己*/
 #define LOG_MAX_LEN 256 /* max length of log message */
 
 /*
@@ -109,6 +115,18 @@ struct logger {
         _log(__FILE__, __LINE__, LOG_EMERG, 1, __VA_ARGS__);                \
     }                                                                       \
 } while (0)
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////
+#define log_zc(...) do {                                                 \
+    if (log_loggable(LOG_ERR) != 0) {                                       \
+        _log(__FILE__, __LINE__, LOG_ZC, 0, __VA_ARGS__);                  \
+    }                                                                       \
+} while (0)
+///////////////////////////////////////////////////////////////////////////////////
+
 
 int log_init(int level, char *filename);
 void log_deinit(void);

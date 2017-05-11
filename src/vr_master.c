@@ -11,26 +11,39 @@ master_init(vr_conf *conf)
     rstatus_t status;
     uint32_t j;
     sds *host, listen_str;
+    //创建listen
     vr_listen **vlisten;
+    //线程数目
     int threads_num;
+    //文件数目限制
     int filelimit;
 
+    //主线程的链接交换单元
     master.cbsul = NULL;
     pthread_mutex_init(&master.cbsullock, NULL);
-
+    //得到配置
     conf_server_get(CONFIG_SOPN_THREADS,&threads_num);
+    //文件限制
     filelimit = threads_num*2+CONFIG_MIN_RESERVED_FDS;
+    //初始化事件
     vr_eventloop_init(&master.vel,filelimit);
+    //设置master线程的运行函数
     master.vel.thread.fun_run = master_thread_run;
-
+    //初始化n个监听链接的结构
     darray_init(&master.listens,darray_n(&cserver->binds),sizeof(vr_listen*));
 
+    //得到每一个监听结构的内容
     for (j = 0; j < darray_n(&cserver->binds); j ++) {
+        //得到绑定的主机名
         host = darray_get(&cserver->binds,j);
+        //得到接收链接的地址
         listen_str = sdsdup(*host);
+        //将端口号附加进主机名
         listen_str = sdscatfmt(listen_str, ":%i", cserver->port);
+        //初始化监听链接的链接结构体
         vlisten = darray_push(&master.listens);
         *vlisten = vr_listen_create(listen_str);
+        
         if (*vlisten == NULL) {
             darray_pop(&master.listens);
             log_error("Create listen %s failed", listen_str);
@@ -39,7 +52,7 @@ master_init(vr_conf *conf)
         }
         sdsfree(listen_str);
     }
-
+    //开始监听
     for (j = 0; j < darray_n(&master.listens); j ++) {
         vlisten = darray_get(&master.listens, j);
         status = vr_listen_begin(*vlisten);
@@ -48,7 +61,7 @@ master_init(vr_conf *conf)
             return VR_ERROR;
         }
     }
-
+    //创建链接交换队列
     master.cbsul = dlistCreate();
     if (master.cbsul == NULL) {
         log_error("Create list failed: out of memory");
@@ -75,16 +88,18 @@ master_deinit(void)
     
 }
 
+//接收链接
 static void
 client_accept(aeEventLoop *el, int fd, void *privdata, int mask) {
     int sd;
     vr_listen *vlisten = privdata;
-
+    //循环从系统的三次握手成功的队列中拿到链接分发到worker线程，每次给不同的线程，然后向其管道写入c
     while((sd = vr_listen_accept(vlisten)) > 0) {
         dispatch_conn_new(vlisten, sd);
     }
 }
 
+//向master的队列加入链接单元
 static void
 cbsul_push(struct connswapunit *su)
 {
@@ -92,7 +107,7 @@ cbsul_push(struct connswapunit *su)
     dlistPush(master.cbsul, su);
     pthread_mutex_unlock(&master.cbsullock);
 }
-
+//从对应的链接交换单元队列中弹出一个链接
 static struct connswapunit *
 cbsul_pop(void)
 {
@@ -104,7 +119,7 @@ cbsul_pop(void)
     
     return su;
 }
-
+//切换线程
 void
 dispatch_conn_exist(client *c, int tid)
 {
@@ -121,20 +136,22 @@ dispatch_conn_exist(client *c, int tid)
 
     su->num = tid;
     su->data = c;
-    
+   //移除客户端 
     unlinkClientFromEventloop(c);
-
+//压入master线程的交换队列
     cbsul_push(su);
 
+    //得到一个worker线程
     worker = darray_get(&workers, (uint32_t)c->curidx);
 
     /* Back to master */
+    //向对应的管道写入b
     buf[0] = 'b';
     if (vr_write(worker->socketpairs[1], buf, 1) != 1) {
         log_error("Notice the worker failed.");
     }
 }
-
+//master的业务逻辑
 static void
 thread_event_process(aeEventLoop *el, int fd, void *privdata, int mask) {
 
@@ -147,7 +164,7 @@ thread_event_process(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     ASSERT(el == master.vel.el);
     ASSERT(fd == worker->socketpairs[0]);
-
+//读取管道
     if (vr_read(fd, buf, 1) != 1) {
         log_warn("Can't read for worker(id:%d) socketpairs[1](%d)", 
             worker->vel.thread.id, fd);
@@ -155,7 +172,9 @@ thread_event_process(aeEventLoop *el, int fd, void *privdata, int mask) {
     }
     
     switch (buf[0]) {
+    //切换线程
     case 'b':
+        //从交换队列里面弹出一个链接
         su = cbsul_pop();
         if (su == NULL) {
             log_warn("Pop from connection back swap list is null");
@@ -164,10 +183,13 @@ thread_event_process(aeEventLoop *el, int fd, void *privdata, int mask) {
         
         idx = su->num;
         su->num = worker->id;
+        //得到交换单元里面的id对应的线程
         worker = darray_get(&workers, (uint32_t)idx);
+        //将被交换的空闲线程压入交换单元队列
         csul_push(worker, su);
 
         /* Jump to the target worker. */
+        //向目标线程写入j
         buf[0] = 'j';
         if (vr_write(worker->socketpairs[0], buf, 1) != 1) {
             log_error("Notice the worker failed.");
@@ -180,6 +202,7 @@ thread_event_process(aeEventLoop *el, int fd, void *privdata, int mask) {
     }
 }
 
+//启动master
 static int
 setup_master(void)
 {
@@ -188,8 +211,10 @@ setup_master(void)
     vr_listen **vlisten;
     vr_worker *worker;
 
+    //创建worker线程
     for (j = 0; j < darray_n(&workers); j ++) {
         worker = darray_get(&workers, j);
+        //worker线程监听管道的读事件
         status = aeCreateFileEvent(master.vel.el, worker->socketpairs[0], 
             AE_READABLE, thread_event_process, worker);
         if (status == AE_ERR) {
@@ -198,6 +223,7 @@ setup_master(void)
         }
     }
 
+    //master线程监听链接
     for (j = 0; j < darray_n(&master.listens); j ++) {
         vlisten = darray_get(&master.listens,j);
         status = aeCreateFileEvent(master.vel.el, (*vlisten)->sd, AE_READABLE, 
@@ -211,6 +237,7 @@ setup_master(void)
     return VR_OK;
 }
 
+//master线程的运行函数
 static void *
 master_thread_run(void *args)
 {    

@@ -1,6 +1,7 @@
 #ifndef _VR_LISTEN_H_
 #define _VR_LISTEN_H_
-
+//网络库
+//主机名端口号文件描述符
 typedef struct vr_listen {
     sds name;               /* hostname:port */
     int port;               /* port */

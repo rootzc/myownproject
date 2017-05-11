@@ -1,6 +1,7 @@
 #include <vr_core.h>
 
 /* Command table. sds string -> command struct pointer. */
+//命令hash表的操作集
 dictType commandTableDictType = {
     dictSdsCaseHash,           /* hash function */
     NULL,                      /* key dup */
@@ -62,6 +63,8 @@ dictType commandTableDictType = {
  *    Note that commands that may trigger a DEL as a side effect (like SET)
  *    are not fast commands.
  */
+
+//静态的命令数组，运行之后会被初始化为字典
 struct redisCommand redisCommandTable[] = {
     /*Connectong*/
     {"ping",pingCommand,-1,"tF",0,NULL,0,0,0,0,0},
@@ -179,17 +182,22 @@ struct redisCommand redisCommandTable[] = {
     {"pfcount",pfcountCommand,-2,"r",0,NULL,1,-1,1,0,0}
 };
 
+
 /* Populates the Redis Command Table starting from the hard coded list
  * we have on top of redis.c file. */
+//从静态数组创建命令hash表
 void populateCommandTable(void) {
     int j;
+    //得到已经实现的命令个数
     int numcommands = sizeof(redisCommandTable)/sizeof(struct redisCommand);
 
+    //将每一个数组元素插入到命令表
     for (j = 0; j < numcommands; j++) {
+        //得到对应的命令表
         struct redisCommand *c = redisCommandTable+j;
         char *f = c->sflags;
         int retval1;
-
+        //转换字符标志到整型
         while(*f != '\0') {
             switch(*f) {
             case 'w': c->flags |= CMD_WRITE; break;
@@ -209,7 +217,7 @@ void populateCommandTable(void) {
             }
             f++;
         }
-    
+        //以命令名为键命令对象为值插入服务器命令表
         retval1 = dictAdd(server.commands, sdsnew(c->name), c);
         ASSERT(retval1 == DICT_OK);
 
@@ -217,21 +225,29 @@ void populateCommandTable(void) {
     }
 }
 
+//在命令表中添加管理员标志：
 int populateCommandsNeedAdminpass(void) {
-    struct darray commands_need_adminpass;
+    struct darray commands_need_adminpass;//这里定义
     sds *command_name;
     struct redisCommand *command;
 
+    //
     darray_init(&commands_need_adminpass,1,sizeof(sds));
+    //从配置树中得到需要管理员身份的命令数组
     conf_server_get(CONFIG_SOPN_COMMANDSNAP,&commands_need_adminpass);
+    //得到该变态数组的长度：初始进入循环时为1
     while (darray_n(&commands_need_adminpass)) {
+        //弹出一个sds为配置文件中的管理员命令，同时命令表的长度减一
         command_name = darray_pop(&commands_need_adminpass);
+
+        //从命令表中得到对应的命令
         command = lookupCommand(*command_name);
         if (command == NULL) {
             log_error("Unknow command %s for commands-need-amdminpass",
                 command_name);
             return VR_ERROR;
         }
+        //设置对应的命令的管理员标志
         command->needadmin = 1;
         sdsfree(*command_name);
     }
@@ -251,13 +267,16 @@ struct redisCommand *lookupCommand(sds name) {
  * This is used by functions rewriting the argument vector such as
  * rewriteClientCommandVector() in order to set client->cmd pointer
  * correctly even if the command was renamed. */
+
+//从命令表(可能被改名)或者原始的命令表中查找对应的命令
 struct redisCommand *lookupCommandOrOriginal(sds name) {
     struct redisCommand *cmd = dictFetchValue(server.commands, name);
-
+    //在未改名的命令表进行查找
     if (!cmd) cmd = dictFetchValue(server.orig_commands,name);
     return cmd;
 }
 
+//通过c字符串查找命令
 struct redisCommand *lookupCommandByCString(char *s) {
     struct redisCommand *cmd;
     sds name = sdsnew(s);
@@ -305,6 +324,7 @@ struct redisCommand *lookupCommandByCString(char *s) {
  * preventCommandReplication(client *c);
  *
  */
+
 void call(client *c, int flags) {
     long long dirty, start, duration;
     int client_old_flags = c->flags;
@@ -428,6 +448,7 @@ void call(client *c, int flags) {
  * If VR_OK is returned the client is still alive and valid and
  * other operations can be performed by the caller. Otherwise
  * if VR_ERROR is returned the client was destroyed (i.e. after QUIT). */
+//初始化client的cmd子段
 int processCommand(client *c) {
     long long maxmemory;
 
@@ -435,6 +456,7 @@ int processCommand(client *c) {
      * go through checking for replication and QUIT will cause trouble
      * when FORCE_REPLICATION is enabled and would be implemented in
      * a regular command proc. */
+    //查看是否为退出命令
     if (!strcasecmp(c->argv[0]->ptr,"quit")) {
         addReply(c,shared.ok);
         c->flags |= CLIENT_CLOSE_AFTER_REPLY;
@@ -443,6 +465,7 @@ int processCommand(client *c) {
 
     /* Now lookup the command and check ASAP about trivial error conditions
      * such as wrong arity, bad command name and so forth. */
+    //填充cmd字段
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
     if (!c->cmd) {
         flagTransaction(c);
@@ -458,6 +481,7 @@ int processCommand(client *c) {
     }
 
     /* Check if the user is authenticated */
+    //需要验证身份
     if (c->vel->cc.requirepass && !c->authenticated && 
         c->cmd->proc != authCommand && c->cmd->proc != adminCommand)
     {
@@ -465,7 +489,7 @@ int processCommand(client *c) {
         addReply(c,shared.noautherr);
         return VR_OK;
     }
-
+    //需要管理员身份
     if (c->cmd->needadmin && c->vel->cc.adminpass && 
         c->authenticated < 2 && c->cmd->proc != adminCommand)
     {
@@ -479,6 +503,7 @@ int processCommand(client *c) {
      * First we try to free some memory if possible (if there are volatile
      * keys in the dataset). If there are not the only thing we can do
      * is returning an error. */
+    //判断内存是否足够
     maxmemory = c->vel->cc.maxmemory;
     if (maxmemory) {
         int retval = freeMemoryIfNeeded(c->vel);
@@ -603,11 +628,13 @@ int processCommand(client *c) {
 
 /* ========================== Redis OP Array API ============================ */
 
+//初始化操作对象数组
 void redisOpArrayInit(redisOpArray *oa) {
     oa->ops = NULL;
     oa->numops = 0;
 }
 
+//向操作数组中追加
 int redisOpArrayAppend(redisOpArray *oa, struct redisCommand *cmd, int dbid,
                        robj **argv, int argc, int target)
 {
@@ -624,6 +651,7 @@ int redisOpArrayAppend(redisOpArray *oa, struct redisCommand *cmd, int dbid,
     return oa->numops;
 }
 
+//释放操作数组
 void redisOpArrayFree(redisOpArray *oa) {
     while(oa->numops) {
         int j;
@@ -649,6 +677,7 @@ void redisOpArrayFree(redisOpArray *oa) {
  * This should not be used inside commands implementation. Use instead
  * alsoPropagate(), preventCommandPropagation(), forceCommandPropagation().
  */
+//
 void propagate(struct redisCommand *cmd, int dbid, robj **argv, int argc,
                int flags)
 {
@@ -711,6 +740,7 @@ void preventCommandReplication(client *c) {
 }
 
 /* Helper function for addReplyCommand() to output flags. */
+//将对应的返回的包压入客户端的发送队列
 static int addReplyCommandFlag(client *c, struct redisCommand *cmd, int f, char *reply) {
     if (cmd->flags & f) {
         addReplyStatus(c, reply);
@@ -720,6 +750,7 @@ static int addReplyCommandFlag(client *c, struct redisCommand *cmd, int f, char 
 }
 
 /* Output the representation of a Redis command. Used by the COMMAND command. */
+//
 static void addReplyCommand(client *c, struct redisCommand *cmd) {
     if (!cmd) {
         addReply(c, shared.nullbulk);
@@ -757,6 +788,7 @@ static void addReplyCommand(client *c, struct redisCommand *cmd) {
 }
 
 /* COMMAND <subcommand> <args> */
+//command命令
 void commandCommand(client *c) {
     if (c->argc == 1) {
         dictIterator *di;
@@ -853,6 +885,7 @@ void commandCommand(client *c) {
     }
 }
 
+//创建命令状态表
 struct darray *
 commandStatsTableCreate(void)
 {
@@ -875,7 +908,7 @@ commandStatsTableCreate(void)
 
     return cstatstable;
 }
-
+//销毁命令状态表
 void
 commandStatsTableDestroy(struct darray *cstatstable)
 {

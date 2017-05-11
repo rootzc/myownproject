@@ -66,34 +66,58 @@
 
 /* With multiplexing we need to take per-client state.
  * Clients are taken in a linked list. */
+//客户端结构抽象
 typedef struct client {
+    //唯一的客户端id
     uint64_t id;            /* Client incremental unique ID. */
     
+    //链接
     struct conn *conn;
+    //处理机
     vr_eventloop *vel;
     
+    //数据库
     redisDb *db;            /* Pointer to currently dispatch DB. */
+    //当前的数据库id
     int dictid;             /* ID of the currently SELECTed DB. */
+    //当前的数据库扫描的id
     int scanid;             /* Internal ID of the currently DB for scan */
+    //客户端名字
     robj *name;             /* As set by CLIENT SETNAME. */
+    //查询缓冲区
     sds querybuf;           /* Buffer we use to accumulate client queries. */
+    //查询缓冲的负载值
     size_t querybuf_peak;   /* Recent (100ms or more) peak of querybuf size. */
+    //参数数量
     int argc;               /* Num of arguments of current command. */
+    //参数
     robj **argv;            /* Arguments of current command. */
+    //命令，以及上一命令
     struct redisCommand *cmd, *lastcmd;  /* Last command executed. */
+    //请求类型
     int reqtype;            /* Request protocol type: PROTO_REQ_* */
+    //
     int multibulklen;       /* Number of multi bulk arguments left to read. */
     long bulklen;           /* Length of bulk argument in multi bulk request. */
+    //返回的对象列表
     dlist *reply;            /* List of reply objects to send to the client. */
+    //返回对象列表的字节数
     unsigned long long reply_bytes; /* Tot bytes of objects in reply list. */
+    //已经发送的字节数
     size_t sentlen;         /* Amount of bytes already sent in the current
                                buffer or object being sent. */
+    //客户端的创建时间
     time_t ctime;           /* Client creation time. */
+    //
     time_t lastinteraction; /* Time of the last interaction, used for timeout */
     time_t obuf_soft_limit_reached_time;
+    //客户端的标志
     int flags;              /* Client flags: CLIENT_* macros. */
+    //要求admin或者auth
     int authenticated;      /* When requirepass(1) or adminpass(2) is non-NULL. */
+    //复制状态
     int replstate;          /* Replication state if this is a slave. */
+    //
     int repl_put_online_on_ack; /* Install slave write handler on ACK. */
     int repldbfd;           /* Replication DB file descriptor. */
     off_t repldboff;        /* Replication DB file offset. */
@@ -105,6 +129,7 @@ typedef struct client {
     long long psync_initial_offset; /* FULLRESYNC reply offset other slaves
                                        copying this slave output buffer
                                        should use. */
+    //master的run_id
     char replrunid[CONFIG_RUN_ID_SIZE+1]; /* Master run id if is a master. */
     int slave_listening_port; /* As configured with: SLAVECONF listening-port */
     int slave_capa;         /* Slave capabilities: SLAVE_CAPA_* bitwise OR. */
@@ -112,21 +137,25 @@ typedef struct client {
     int btype;              /* Type of blocking op if CLIENT_BLOCKED. */
     blockingState bpop;     /* blocking state */
     long long woff;         /* Last write global replication offset. */
+    //监视的键
     dlist *watched_keys;     /* Keys WATCHED for MULTI/EXEC CAS */
     dict *pubsub_channels;  /* channels a client is interested in (SUBSCRIBE) */
     dlist *pubsub_patterns;  /* patterns a client is interested in (SUBSCRIBE) */
     sds peerid;             /* Cached peer ID. */
 
+    //
     int curidx;             /* The worker idx that this client current belong to. */
     int taridx;             /* The target worker idx that this client will jump to */
     int steps;              /* The steps that this client jumps between workers. */
     void *cache;            /* Cache data for client to jump between workers. */
 
     /* Response buffer */
+    //回应的缓冲区，不足时放入链表
     int bufpos;
     char buf[PROTO_REPLY_CHUNK_BYTES];
 } client;
 
+//客户端缓冲区的限制配置
 typedef struct clientBufferLimitsConfig {
     unsigned long long hard_limit_bytes;
     unsigned long long soft_limit_bytes;
@@ -134,6 +163,7 @@ typedef struct clientBufferLimitsConfig {
 } clientBufferLimitsConfig;
 
 /* networking.c -- Networking and Client related operations */
+//客户端api
 client *createClient(vr_eventloop *vel, struct conn *conn);
 void closeTimedoutClients(void);
 void freeClient(client *c);

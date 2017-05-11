@@ -46,12 +46,13 @@ static char* dist_strings[] = {
 #undef DEFINE_ACTION
 
 #define DEFINE_ACTION(_policy, _name) (char*)(#_name),
+//下面是一个宏会将对应的参数转化为调用与该参数同名的函数，用于过期删除策略
 static char* evictpolicy_strings[] = {
     EVICTPOLICY_CODEC( DEFINE_ACTION )
     NULL
 };
 #undef DEFINE_ACTION
-
+//就是配置选项的数组，含有vr_conf内部的配置选项名，类型，geter seter 对应在vr_conf中的偏移
 static conf_option conf_server_options[] = {
     { (char *)CONFIG_SOPN_DATABASES,
       CONF_FIELD_TYPE_INT, 1,
@@ -118,7 +119,7 @@ static conf_option conf_server_options[] = {
 
 vr_conf *conf = NULL;
 conf_server *cserver = NULL;
-
+//将配置选项的值写入log
 static void
 conf_value_dump(conf_value *cv, int log_level)
 {
@@ -141,6 +142,7 @@ conf_value_dump(conf_value *cv, int log_level)
     }
 }
 
+//将一个配置子树写入log
 static void
 conf_organization_dump(sds name, dict *org, int log_level)
 {
@@ -175,7 +177,7 @@ conf_organization_dump(sds name, dict *org, int log_level)
 
     dictReleaseIterator(di);
 }
-
+//将一个配置树写入log
 static void
 conf_organizations_dump(vr_conf *cf)
 {
@@ -208,6 +210,7 @@ conf_organizations_dump(vr_conf *cf)
     dictReleaseIterator(di);
 }
 
+//设置最大内存
 int
 conf_set_maxmemory(void *obj, conf_option *opt, void *data)
 {
@@ -241,7 +244,7 @@ conf_set_maxmemory(void *obj, conf_option *opt, void *data)
     CONF_UNLOCK();
     return VR_OK;
 }
-
+//厉害了，设置过期删除策略
 int
 conf_set_maxmemory_policy(void *obj, conf_option *opt, void *data)
 {
@@ -262,6 +265,7 @@ conf_set_maxmemory_policy(void *obj, conf_option *opt, void *data)
 
     for (policy = evictpolicy_strings; *policy; policy ++) {
         if (strcmp(cv->value, *policy) == 0) {
+            //得到数组下标
             *gt = policy - evictpolicy_strings;
             break;
         }
@@ -273,7 +277,7 @@ conf_set_maxmemory_policy(void *obj, conf_option *opt, void *data)
             cv->value);
         return VR_ERROR;
     }
-
+    
     if (*gt == MAXMEMORY_VOLATILE_LRU || *gt == MAXMEMORY_ALLKEYS_LRU) {
         CONF_UNLOCK();
         log_error("ERROR: Conf maxmemory policy now is not support %s and %s", 
@@ -301,6 +305,7 @@ conf_set_int_non_zero(void *obj, conf_option *opt, void *data)
 
     CONF_WLOCK();
 
+    //指向对应vr_con的offset位置的子配置体
     p = obj;
     gt = (int*)(p + opt->offset);
 
@@ -310,7 +315,7 @@ conf_set_int_non_zero(void *obj, conf_option *opt, void *data)
             opt->name);
         return VR_ERROR;
     }
-
+    //设置对应的配置值
     *gt = vr_atoi(cv->value, sdslen(cv->value));
 
     if (*gt < 0) {
@@ -324,7 +329,7 @@ conf_set_int_non_zero(void *obj, conf_option *opt, void *data)
             opt->name);
         return VR_ERROR;
     }
-    conf->version ++;
+    conf->version ++;//配置版本号加一
     CONF_UNLOCK();
     return VR_OK;
 }
@@ -673,6 +678,7 @@ static void dictDestructor(void *privdata, void *val)
     dictRelease(val);
 }
 
+//配置子树的方法集合
 static dictType OrganizationDictType = {
     dictSdsHash,                /* hash function */
     NULL,                       /* key dup */
@@ -682,6 +688,7 @@ static dictType OrganizationDictType = {
     dictDestructor              /* val destructor */
 };
 
+//键值村池的字典方法集合
 static dictType KeyValueDictType = {
     dictSdsHash,                /* hash function */
     NULL,                       /* key dup */
@@ -691,6 +698,7 @@ static dictType KeyValueDictType = {
     dictConfValueDestructor     /* val destructor */
 };
 
+//配置表的操作集合
 static dictType ConfTableDictType = {
     dictStrCaseHash,            /* hash function */
     NULL,                       /* key dup */
@@ -700,6 +708,7 @@ static dictType ConfTableDictType = {
     NULL                        /* val destructor */
 };
 
+//创建一个配置选项
 conf_value *conf_value_create(int type)
 {
     conf_value *cv;
@@ -723,6 +732,7 @@ conf_value *conf_value_create(int type)
     return cv;
 }
 
+//销毁一个配置选项
 void conf_value_destroy(conf_value *cv)
 {
     conf_value **cv_sub;
@@ -754,6 +764,7 @@ void conf_value_destroy(conf_value *cv)
     dfree(cv);
 }
 
+//conf_server配置子树的创建
 static int conf_server_init(conf_server *cs)
 {
     if(cs == NULL){
@@ -780,6 +791,7 @@ static int conf_server_init(conf_server *cs)
     return VR_OK;
 }
 
+//设置缺省的server配置子树
 static int conf_server_set_default(conf_server *cs)
 {
     sds *str;
@@ -788,7 +800,7 @@ static int conf_server_set_default(conf_server *cs)
     if(cs == NULL){
         return VR_ERROR;
     }
-
+    //就是将静态的conf_server_options创建配置树的方法
     for (opt = conf_server_options; opt&&opt->name; opt++) {
         dictAdd(cs->ctable,opt->name,opt);
     }
@@ -827,7 +839,7 @@ static int conf_server_set_default(conf_server *cs)
 
     return VR_OK;
 }
-
+//析构conf_server
 static void conf_server_deinit(conf_server *cs)
 {
     sds *str;
@@ -874,6 +886,7 @@ static void conf_server_deinit(conf_server *cs)
     darray_deinit(&cs->commands_need_adminpass);
 }
 
+//从vr_conf的ctable配置方法中得到get方法，然后用get方法得到对应的配置值
 int
 conf_server_get(const char *option_name, void *value)
 {
@@ -885,7 +898,7 @@ conf_server_get(const char *option_name, void *value)
 
     return opt->get(cserver, opt, value);
 }
-
+//从vr_conf 查找对应的set方法然后得到set方法，从而设置对应的配置值
 int
 conf_server_set(const char *option_name, conf_value *value)
 {
@@ -898,6 +911,7 @@ conf_server_set(const char *option_name, conf_value *value)
     return opt->set(cserver, opt, value);
 }
 
+//初始话conf结构
 static int conf_init(vr_conf *cf)
 {
     int ret;
@@ -906,17 +920,21 @@ static int conf_init(vr_conf *cf)
         return VR_ERROR;
     }
 
+    //配置文件名
     cf->fname = NULL;
+    //配置树
     cf->organizations = NULL;
+    //配置版本号
     cf->version = 0;
     pthread_rwlock_init(&cf->rwl, NULL);
     pthread_mutex_init(&cf->flock, NULL);
-
+    //创建对应的配置树
     cf->organizations = dictCreate(&OrganizationDictType, NULL);
     if (cf->organizations == NULL) {
         return VR_ERROR;
     }
 
+    //初始化vr_server子树
     conf_server_init(&cf->cserver);
 
     conf = cf;
@@ -924,6 +942,7 @@ static int conf_init(vr_conf *cf)
     return VR_OK;
 }
 
+//设置conf的缺省值
 static int conf_set_default(vr_conf *cf)
 {
     CONF_WLOCK();
@@ -931,7 +950,7 @@ static int conf_set_default(vr_conf *cf)
     CONF_UNLOCK();
     return VR_OK;
 }
-
+//析构conf
 static void conf_deinit(vr_conf *cf)
 {
     if(cf == NULL){
@@ -955,6 +974,7 @@ static void conf_deinit(vr_conf *cf)
     pthread_mutex_destroy(&cf->flock);
 }
 
+//将conf_server写入log
 static void
 conf_server_dump(conf_server *cs, int log_level)
 {
@@ -970,6 +990,7 @@ conf_server_dump(conf_server *cs, int log_level)
     log_debug(log_level, "  max_time_complexity_limit : %lld", cs->max_time_complexity_limit);
 }
 
+//将conf写入log
 static void
 conf_dump(vr_conf *cf)
 {
@@ -989,6 +1010,7 @@ conf_dump(vr_conf *cf)
 /* return -1: error
   * return 0: conf value is append
   * return 1: conf value is insert*/
+//向配置树或者配置子树插入数据
 static int
 conf_key_value_insert(dict *org, sds key, conf_value *cv)
 {
@@ -1029,7 +1051,8 @@ conf_key_value_insert(dict *org, sds key, conf_value *cv)
 
     return 1;
 }
-
+//从字符串中加载对应的配置选项到配置树
+//其实此处可以使用状态机实现
 static int
 conf_pre_load_from_string(vr_conf *cf, char *config)
 {
@@ -1042,31 +1065,40 @@ conf_pre_load_from_string(vr_conf *cf, char *config)
     dictEntry *de;
     sds key = NULL;
     conf_value *cv = NULL;
-
+    //将字符串以‘\n’划分为多行
     lines = sdssplitlen(config,strlen(config),"\n",1,&totlines);
 
+
+    //针对每一行进行解析
     for (i = 0; i < totlines; i++) {
         sds *argv;
         int argc;
 
         linenum = i+1;
+        //跳过无用字符
         lines[i] = sdstrim(lines[i]," \t\r\n");
 
         /* Skip comments and blank lines */
+        //跳过注释
         if (lines[i][0] == '#' || lines[i][0] == '\0') continue;
 
+        //进入section节
         if (lines[i][0] == '[') {
+            //
             if (sdslen(lines[i]) <= 2 || lines[i][sdslen(lines[i])-1] == ']') {
                 log_error("Organization name %s in conf file %s error",
                     lines[i], cf->fname);
                 goto loaderr;
             }
+            //得到配置选项名
             org_name = sdsnewlen(lines[i]+1,sdslen(lines[i])-2);
             de = dictFind(cf->organizations,org_name);
             if (de == NULL) {
+                //没有值时进行设置值
                 org = dictCreate(&KeyValueDictType, NULL);
                 dictAdd(cf->organizations,org_name,org);
             } else {
+                //得到配置选项值
                 org = dictGetVal(de);
                 sdsfree(org_name);
             }
@@ -1074,7 +1106,9 @@ conf_pre_load_from_string(vr_conf *cf, char *config)
             continue;
         }
 
+//开始解析参数
         /* Split into arguments */
+        //将每一行切割为子串
         argv = sdssplitargs(lines[i],&argc);
         if (argv == NULL) {
             log_error("Unbalanced quotes in configuration line");
@@ -1086,17 +1120,21 @@ conf_pre_load_from_string(vr_conf *cf, char *config)
             sdsfreesplitres(argv,argc);
             continue;
         }
+        //将配置选项名转为小写
         sdstolower(argv[0]);
 
+        //创建对应的值并且插入配置树
         if (org == NULL) {
             org_name = sdsnew("server");
             org = dictCreate(&KeyValueDictType, NULL);
             dictAdd(cf->organizations,org_name,org);
         }
 
+        //配置选项名
         key = argv[0];
         argv[0] = NULL;
         for (j = 1; j < argc; j ++) {
+            //将每一个配置选项的值封装为conf_value
             cv = conf_value_create(CONF_VALUE_TYPE_STRING);
             cv->value = argv[j];
             argv[j] = NULL;
@@ -1112,11 +1150,11 @@ conf_pre_load_from_string(vr_conf *cf, char *config)
             }
         }
 
-        sdsfreesplitres(argv,argc);
+        sdsfreesplitres(argv,argc);//释放中间值
     }
 
     if (lines) {
-        sdsfreesplitres(lines,linenum);
+        sdsfreesplitres(lines,linenum);//释放行数组
     }
     return VR_OK;
     
@@ -1127,6 +1165,7 @@ loaderr:
     return VR_ERROR;
 }
 
+//从配置文件创建配置树
 static int
 conf_pre_validate(vr_conf *cf)
 {
@@ -1135,6 +1174,7 @@ conf_pre_validate(vr_conf *cf)
     char buf[CONF_MAX_LINE+1];
 
     /* Load the file content */
+    //打开配置文件并且读入到缓冲区
     if (cf->fname) {
         FILE *fp;
 
@@ -1151,7 +1191,7 @@ conf_pre_validate(vr_conf *cf)
             config = sdscat(config,buf);
         if (fp != stdin) fclose(fp);
     }
-
+    //从缓冲的字符串中加载对应的配置选项
     ret = conf_pre_load_from_string(cf,config);
     if (ret != VR_OK) {
         sdsfree(config);
@@ -1162,6 +1202,7 @@ conf_pre_validate(vr_conf *cf)
     return VR_OK;
 }
 
+//从vr_conf出解析conf_server结构体
 static int
 conf_parse_conf_server(conf_server *cs, dict *org)
 {
@@ -1175,10 +1216,14 @@ conf_parse_conf_server(conf_server *cs, dict *org)
     }
     
     key = sdsempty();
+    // conf_server_option存放了每一个conf_server配置选项的名字，seter和geter以及相应子段在conf_server的字段位置
     for (opt = conf_server_options; opt&&opt->name; opt++) {
         key = sdscpy(key,opt->name);
+        //从vr_conf配置子树查找对应的配置选项
         de = dictFind(org,key);
+
         if (de != NULL) {
+            //调用对应的seter方法
             ret = opt->set(cs, opt, dictGetVal(de));
             if(ret != VR_OK){
                 log_error("parse key %s in conf file error", key);
@@ -1191,6 +1236,8 @@ conf_parse_conf_server(conf_server *cs, dict *org)
     sdsfree(key);
     return VR_OK;
 }
+
+//解析vr_conf到vr_server
 
 static int
 conf_parse(vr_conf *cf)
@@ -1210,6 +1257,7 @@ conf_parse(vr_conf *cf)
     }
 
     /* server */
+    //查找conf_server子树
     key = sdsnew(CONF_ORGANIZATION_NAME_SERVER);
     de = dictFind(orgs, key);
     if (de == NULL) {
@@ -1218,7 +1266,7 @@ conf_parse(vr_conf *cf)
         sdsfree(key);
         return VR_ERROR;
     }
-
+    //得到server子树
     org = dictGetVal(de);
     if (org == NULL) {
         log_error("dict %s entry value is NULL", dictGetKey(de));
@@ -1226,6 +1274,7 @@ conf_parse(vr_conf *cf)
         return VR_ERROR;
     }
 
+    //解析vr_conf的配置选项到conf_server子树
     ret = conf_parse_conf_server(&cf->cserver, org);
     if( ret != VR_OK) {
         log_error("common conf parse error");
@@ -1238,6 +1287,7 @@ conf_parse(vr_conf *cf)
     return VR_OK;
 }
 
+//销毁配置树
 static int
 conf_post_validate(vr_conf *cf)
 {
@@ -1252,7 +1302,7 @@ conf_post_validate(vr_conf *cf)
     
     return VR_OK;
 }
-
+//记录配置文件路径初始化配置树
 static vr_conf *
 conf_open(char *filename)
 {
@@ -1264,23 +1314,24 @@ conf_open(char *filename)
         log_error("configuration file name is NULL.");
         return NULL;
     }
-
+    //得到配置文件全路径
     path = getAbsolutePath(filename);
     if (path == NULL) {
         log_error("configuration file name '%s' is error.", filename);
         goto error;
     }
-
+    //分配配置树空间
     cf = dalloc(sizeof(*cf));
     if (cf == NULL) {
         goto error;
     }
-
+    //初始化配置树
     ret = conf_init(cf);
     if(ret != VR_OK){
         goto error;
     }
 
+    //设置缺省配置选项
     ret = conf_set_default(cf);
     if (ret != VR_OK) {
         goto error;
@@ -1303,26 +1354,30 @@ error:
     return NULL;
 }
 
+//创建配置树
 vr_conf *
 conf_create(char *filename)
 {
     int ret;
     vr_conf *cf;
-
+    //记录配置文件路径，初始化配置树为初始值
     cf = conf_open(filename);
     if (cf == NULL) {
         return NULL;
     }
 
     /* validate configuration file before parsing */
+    //从配置文件创建配置树
     ret = conf_pre_validate(cf);
     if (ret != VR_OK) {
         goto error;
     }
 
+    //将配置树写入log
     conf_organizations_dump(cf);
 
     /* parse the configuration file */
+    //解析
     ret = conf_parse(cf);
     if (ret != VR_OK) {
         goto error;
@@ -1344,7 +1399,7 @@ error:
     conf_destroy(cf);
     return NULL;
 }
-
+//析构配置树
 void 
 conf_destroy(vr_conf *cf)
 {
@@ -1356,7 +1411,7 @@ conf_destroy(vr_conf *cf)
     
     dfree(cf);
 }
-
+//得到配置树的版本号
 unsigned long long
 conf_version_get(void)
 {
@@ -1369,36 +1424,39 @@ conf_version_get(void)
     return version;
 }
 
+//读操作锁
 int
 CONF_RLOCK(void)
 {
     return pthread_rwlock_rdlock(&conf->rwl);
 }
-
+//写操作锁
 int
 CONF_WLOCK(void)
 {
     return pthread_rwlock_wrlock(&conf->rwl);
 }
 
+//解锁
 int
 CONF_UNLOCK(void)
 {
     return pthread_rwlock_unlock(&conf->rwl);
 }
 
+//加锁文件锁
 int
 CONFF_LOCK(void)
 {
     return pthread_mutex_lock(&conf->flock);
 }
-
+//解锁文件锁
 int
 CONFF_UNLOCK(void)
 {
     return pthread_mutex_unlock(&conf->flock);
 }
-
+//得到过期删除策略的数组
 const char *
 get_evictpolicy_strings(int evictpolicy_type)
 {
@@ -1409,6 +1467,7 @@ get_evictpolicy_strings(int evictpolicy_type)
  * CONFIG SET implementation
  *----------------------------------------------------------------------------*/
 
+//config命令
 static void configSetCommand(client *c) {
     int ret;
     sds value;
@@ -1420,6 +1479,7 @@ static void configSetCommand(client *c) {
     serverAssertWithInfo(c,c->argv[2],sdsEncodedObject(c->argv[2]));
     serverAssertWithInfo(c,c->argv[3],sdsEncodedObject(c->argv[3]));
 
+    //查找配置选项
     opt = dictFetchValue(cserver->ctable, c->argv[2]->ptr);
 
     if (opt == NULL) {
@@ -1453,7 +1513,7 @@ static void configSetCommand(client *c) {
             return;
         }
     }
-
+    //创建配置选项
     fields = sdssplitlen(value,sdslen(value)," ",1,&fields_count);
     if (fields == NULL) {
         goto badfmt;
@@ -1481,6 +1541,7 @@ static void configSetCommand(client *c) {
     }
     sdsfreesplitres(fields,fields_count);
 
+    //设置配置选项
     ret = opt->set(cserver, opt, cv);
     conf_value_destroy(cv);
     if (ret != VR_OK) {
@@ -1512,12 +1573,13 @@ badfmt: /* Bad format errors */
 /*-----------------------------------------------------------------------------
  * CONFIG GET implementation
  *----------------------------------------------------------------------------*/
-
+//
 static void addReplyConfOption(client *c,conf_option *cop)
 {
     addReplyBulkCString(c,cop->name);
     if (cop->type == CONF_FIELD_TYPE_INT) {
         int value;
+        //从conf中查找配置选项
         conf_server_get(cop->name,&value);
         
         if (!strcmp(cop->name,CONFIG_SOPN_MAXMEMORYP)) {
@@ -1552,7 +1614,7 @@ static void addReplyConfOption(client *c,conf_option *cop)
         }
         darray_deinit(&values);
         if (sdslen(value) > 0) sdsrange(value,0,-2);
-        addReplyBulkSds(c,value);
+        addReplyBulkSds(c,value);//返回给客户端
     } else {
         serverPanic("Error conf field type");
     }
@@ -1563,7 +1625,7 @@ static void configGetCommand(client *c) {
     char *pattern = o->ptr;
     conf_option *cop;
     serverAssertWithInfo(c,o,sdsEncodedObject(o));
-
+    //查找配置树
     cop = dictFetchValue(cserver->ctable, pattern);
     if (cop != NULL) {
         /* Don't show adminpass if user has no right. */
@@ -1583,7 +1645,7 @@ static void configGetCommand(client *c) {
                 if (!strcmp(cop->name,CONFIG_SOPN_ADMINPASS) && 
                     c->vel->cc.adminpass && c->authenticated < 2)
                     continue;
-                
+               //返回结果 
                 addReplyConfOption(c,cop);
                 matches ++;
             }
@@ -1597,22 +1659,25 @@ static void configGetCommand(client *c) {
  *----------------------------------------------------------------------------*/
 
 /* The config rewrite state. */
+//重写配置状态
 struct rewriteConfigState {
-    dict *option_to_line; /* Option -> list of config file lines map */
-    dict *rewritten;      /* Dictionary of already processed options */
+    dict *option_to_line; //配置文件列表/* Option -> list of config file lines map */
+    dict *rewritten;      //已经处理的选项/* Dictionary of already processed options */
     int numlines;         /* Number of lines in current config */
-    sds *lines;           /* Current lines as an array of sds strings */
-    int has_tail;         /* True if we already added directives that were
-                             not present in the original config file. */
+    sds *lines;           //当前处理的行/* Current lines as an array of sds strings */
+    int has_tail;         ///* True if we already added directives that were
+                            /* not present in the original config file. */
 };
 
 /* Append the new line to the current configuration state. */
+//追加一行
 static void rewriteConfigAppendLine(struct rewriteConfigState *state, sds line) {
     state->lines = drealloc(state->lines, sizeof(char*) * (state->numlines+1));
     state->lines[state->numlines++] = line;
 }
 
 /* Populate the option -> list of line numbers map. */
+//追加
 static void rewriteConfigAddLineNumberToOption(struct rewriteConfigState *state, sds option, int linenum) {
     dlist *l = dictFetchValue(state->option_to_line,option);
 

@@ -23,19 +23,25 @@ void freeClientReplyValue(void *o) {
 int listMatchObjects(void *a, void *b) {
     return equalStringObjects(a,b);
 }
-
+//来一个链接就创建客户端
 client *createClient(vr_eventloop *vel, struct conn *conn) {
+    //分配客户端空间
     client *c = dalloc(sizeof(client));
 
     /* passing -1 as fd it is possible to create a non connected client.
      * This is useful since all the commands needs to be executed
      * in the context of a client. When commands are executed in other
      * contexts (for instance a Lua script) we need a non connected client. */
+    //
     if (conn->sd != -1) {
+        //设置链接为非阻塞
         vr_set_nonblocking(conn->sd);
+        //开启nodelay算法
         vr_set_tcpnodelay(conn->sd);
+        //配置心跳
         if (server.tcpkeepalive)
             vr_set_tcpkeepalive(conn->sd,server.tcpkeepalive,0,0);
+        //创建客户端链接的读事件
         if (aeCreateFileEvent(vel->el,conn->sd,AE_READABLE,
             readQueryFromClient, c) == AE_ERR)
         {
@@ -44,20 +50,33 @@ client *createClient(vr_eventloop *vel, struct conn *conn) {
             return NULL;
         }
     }
-
+    //选择数据库
     selectDb(c,0);
+    //配置唯一的客户端id
     c->id = vel->next_client_id++;
+    //客户端的链接
     c->conn = conn;
+    //事件处理器
     c->vel = vel;
+    //
     c->scanid = -1;
+    //客户端名字
     c->name = NULL;
+    //缓冲区的位置
     c->bufpos = 0;
+    //查询缓存
     c->querybuf = sdsempty();
+    //
     c->querybuf_peak = 0;
+    //请求类型
     c->reqtype = 0;
+    //参数个数
     c->argc = 0;
+    //参数
     c->argv = NULL;
+    //命令
     c->cmd = c->lastcmd = NULL;
+    //
     c->multibulklen = 0;
     c->bulklen = -1;
     c->sentlen = 0;
@@ -74,6 +93,7 @@ client *createClient(vr_eventloop *vel, struct conn *conn) {
     c->reply = dlistCreate();
     c->reply_bytes = 0;
     c->obuf_soft_limit_reached_time = 0;
+    //
     dlistSetFreeMethod(c->reply,freeClientReplyValue);
     dlistSetDupMethod(c->reply,dupClientReplyValue);
     c->btype = BLOCKED_NONE;
@@ -120,6 +140,7 @@ client *createClient(vr_eventloop *vel, struct conn *conn) {
  * Typically gets called every time a reply is built, before adding more
  * data to the clients output buffers. If the function returns VR_ERROR no
  * data should be appended to the output buffers. */
+//准备写:判断写操作是否允许与合法
 int prepareClientToWrite(client *c) {
     /* If it's the Lua client we always return ok without installing any
      * handler since there is no socket at all. */
@@ -130,6 +151,7 @@ int prepareClientToWrite(client *c) {
 
     /* Masters don't receive replies, unless CLIENT_MASTER_FORCE_REPLY flag
      * is set. */
+
     if ((c->flags & CLIENT_MASTER) &&
         !(c->flags & CLIENT_MASTER_FORCE_REPLY)) return VR_ERROR;
 
@@ -139,6 +161,7 @@ int prepareClientToWrite(client *c) {
      * if not already done (there were no pending writes already and the client
      * was yet not flagged), and, for slaves, if the slave can actually
      * receive writes at this stage. */
+    //
     if (!clientHasPendingReplies(c) &&
         !(c->flags & CLIENT_PENDING_WRITE) &&
         (c->replstate == REPL_STATE_NONE ||
@@ -160,6 +183,7 @@ int prepareClientToWrite(client *c) {
 
 /* Create a duplicate of the last object in the reply list when
  * it is not exclusively owned by the reply list. */
+//从回复链表复制一个对象
 robj *dupLastObjectIfNeeded(dlist *reply) {
     robj *new, *cur;
     dlistNode *ln;
@@ -176,7 +200,7 @@ robj *dupLastObjectIfNeeded(dlist *reply) {
 /* -----------------------------------------------------------------------------
  * Low level functions to add more data to output buffers.
  * -------------------------------------------------------------------------- */
-
+//将结果压入到客户端缓冲区
 int _addReplyToBuffer(client *c, const char *s, size_t len) {
     size_t available = sizeof(c->buf)-c->bufpos;
 
@@ -188,17 +212,18 @@ int _addReplyToBuffer(client *c, const char *s, size_t len) {
 
     /* Check that the buffer has enough space available for this string. */
     if (len > available) return VR_ERROR;
-
+    //拷贝数据
     memcpy(c->buf+c->bufpos,s,len);
     c->bufpos+=len;
     return VR_OK;
 }
 
+//将响应的对象压入到响应列表
 void _addReplyObjectToList(client *c, robj *o) {
     robj *tail, *obj;
 
     if (c->flags & CLIENT_CLOSE_AFTER_REPLY) return;
-
+    //响应列表长度
     if (dlistLength(c->reply) == 0) {
         if (o->constant)
             obj = o;
@@ -232,6 +257,7 @@ void _addReplyObjectToList(client *c, robj *o) {
 
 /* This method takes responsibility over the sds. When it is no longer
  * needed it will be free'd, otherwise it ends up in a robj. */
+//将sds插入到链表尾
 void _addReplySdsToList(client *c, sds s) {
     robj *tail;
 
@@ -263,6 +289,7 @@ void _addReplySdsToList(client *c, sds s) {
     asyncCloseClientOnOutputBufferLimitReached(c);
 }
 
+//创建sds对象然后插入到reply链表
 void _addReplyStringToList(client *c, const char *s, size_t len) {
     robj *tail;
 
@@ -298,8 +325,9 @@ void _addReplyStringToList(client *c, const char *s, size_t len) {
  * Higher level functions to queue data on the client output buffer.
  * The following functions are the ones that commands implementations will call.
  * -------------------------------------------------------------------------- */
-
+//添加回应包
 void addReply(client *c, robj *obj) {
+    //
     if (prepareClientToWrite(c) != VR_OK) return;
 
     /* This is an important place where we can avoid copy-on-write
@@ -309,10 +337,12 @@ void addReply(client *c, robj *obj) {
      * If the encoding is RAW and there is room in the static buffer
      * we'll be able to send the object to the client without
      * messing with its page. */
+    //sds对象尝试放入缓冲区，否则放入回复链表
     if (sdsEncodedObject(obj)) {
         if (_addReplyToBuffer(c,obj->ptr,sdslen(obj->ptr)) != VR_OK)
             _addReplyObjectToList(c,obj);
     } else if (obj->encoding == OBJ_ENCODING_INT) {
+        //int对象
         robj *obj_new;
         /* Optimization: if there is room in the static buffer for 32 bytes
          * (more than the max chars a 64 bit integer can take as string) we
@@ -320,13 +350,15 @@ void addReply(client *c, robj *obj) {
         if (dlistLength(c->reply) == 0 && (sizeof(c->buf) - c->bufpos) >= 32) {
             char buf[32];
             int len;
-
+            //转换为string类型
             len = ll2string(buf,sizeof(buf),(long)obj->ptr);
+            //添加到缓冲区
             if (_addReplyToBuffer(c,buf,len) == VR_OK)
                 return;
             /* else... continue with the normal code path, but should never
              * happen actually since we verified there is room. */
         }
+        //转换为sds对象加入缓冲区否则加入到回复链表
         obj_new = getDecodedObject(obj);
         if (_addReplyToBuffer(c,obj_new->ptr,sdslen(obj_new->ptr)) != VR_OK)
             _addReplyObjectToList(c,obj_new);
@@ -336,6 +368,7 @@ void addReply(client *c, robj *obj) {
     }
 }
 
+//同理，添加sds回复
 void addReplySds(client *c, sds s) {
     if (prepareClientToWrite(c) != VR_OK) {
         /* The caller expects the sds to be free'd. */
@@ -349,13 +382,14 @@ void addReplySds(client *c, sds s) {
         _addReplySdsToList(c,s);
     }
 }
-
+//添加string回复
 void addReplyString(client *c, const char *s, size_t len) {
     if (prepareClientToWrite(c) != VR_OK) return;
     if (_addReplyToBuffer(c,s,len) != VR_OK)
         _addReplyStringToList(c,s,len);
 }
-
+//协议实现///////////////////////////////////////////////////////////////////////////////////////
+//错误回复-ERR msg /r/n
 void addReplyErrorLength(client *c, const char *s, size_t len) {
     addReplyString(c,"-ERR ",5);
     addReplyString(c,s,len);
@@ -366,6 +400,7 @@ void addReplyError(client *c, const char *err) {
     addReplyErrorLength(c,err,strlen(err));
 }
 
+//安格式添加错误并且将中间的不可打印字符替换为‘ ’
 void addReplyErrorFormat(client *c, const char *fmt, ...) {
     size_t l, j;
     va_list ap;
@@ -381,17 +416,18 @@ void addReplyErrorFormat(client *c, const char *fmt, ...) {
     addReplyErrorLength(c,s,sdslen(s));
     sdsfree(s);
 }
-
+//状态回复标志 + msg /r/n
 void addReplyStatusLength(client *c, const char *s, size_t len) {
     addReplyString(c,"+",1);
     addReplyString(c,s,len);
     addReplyString(c,"\r\n",2);
 }
-
+//
 void addReplyStatus(client *c, const char *status) {
     addReplyStatusLength(c,status,strlen(status));
 }
 
+//格式化状态返回
 void addReplyStatusFormat(client *c, const char *fmt, ...) {
     va_list ap;
     va_start(ap,fmt);
@@ -440,6 +476,7 @@ void setDeferredMultiBulkLength(client *c, void *node, long length) {
 }
 
 /* Add a double as a bulk reply */
+//添加double
 void addReplyDouble(client *c, double d) {
     char dbuf[128], sbuf[128];
     int dlen, slen;
@@ -457,6 +494,7 @@ void addReplyDouble(client *c, double d) {
 /* Add a long double as a bulk reply, but uses a human readable formatting
  * of the double instead of exposing the crude behavior of doubles to the
  * dear user. */
+
 void addReplyHumanLongDouble(client *c, long double d) {
     robj *o = createStringObjectFromLongDouble(d,1);
     addReplyBulk(c,o);
@@ -465,6 +503,7 @@ void addReplyHumanLongDouble(client *c, long double d) {
 
 /* Add a long long as integer reply or bulk len / multi bulk count.
  * Basically this is used to output <prefix><long long><crlf>. */
+
 void addReplyLongLongWithPrefix(client *c, long long ll, char prefix) {
     char buf[128];
     int len;
@@ -572,6 +611,7 @@ void addReplyBulkLongLong(client *c, long long ll) {
 /* Copy 'src' client output buffers into 'dst' client output buffers.
  * The function takes care of freeing the old output buffers of the
  * destination client. */
+//拷贝客户端缓存
 void copyClientOutputBuffer(client *dst, client *src) {
     dlistRelease(dst->reply);
     dst->reply = dlistDup(src->reply);
@@ -582,6 +622,7 @@ void copyClientOutputBuffer(client *dst, client *src) {
 
 /* Return true if the specified client has pending reply buffers to write to
  * the socket. */
+//客户端有数据写出
 int clientHasPendingReplies(client *c) {
     return c->bufpos || dlistLength(c->reply);
 }
@@ -597,6 +638,7 @@ static void freeClientArgv(client *c) {
 /* Close all the slaves connections. This is useful in chained replication
  * when we resync with our own master and want to force all our slaves to
  * resync with us as well. */
+//
 void disconnectSlaves(void) {
     while (dlistLength(repl.slaves)) {
         dlistNode *ln = dlistFirst(repl.slaves);
@@ -607,6 +649,7 @@ void disconnectSlaves(void) {
 /* Remove the specified client from eventloop lists where the client could
  * be referenced from this eventloop, not including the Pub/Sub channels.
  * This is used by clients jump between workers. */
+//
 void unlinkClientFromEventloop(client *c) {
     dlistNode *ln;
     vr_eventloop *vel = c->vel;
@@ -816,12 +859,13 @@ void freeClient(client *c) {
  * This function is useful when we need to terminate a client but we are in
  * a context where calling freeClient() is not possible, because the client
  * should be valid for the continuation of the flow of the program. */
+//异步关闭客户端
 void freeClientAsync(client *c) {
     if (c->flags & CLIENT_CLOSE_ASAP || c->flags & CLIENT_LUA) return;
     c->flags |= CLIENT_CLOSE_ASAP;
     dlistAddNodeTail(c->vel->clients_to_close,c);
 }
-
+//释放异步关闭队列中的客户端
 void freeClientsInAsyncFreeQueue(vr_eventloop *vel) {
     while (dlistLength(vel->clients_to_close)) {
         dlistNode *ln = dlistFirst(vel->clients_to_close);
@@ -835,6 +879,7 @@ void freeClientsInAsyncFreeQueue(vr_eventloop *vel) {
 
 /* Write data in output buffers to client. Return VR_OK if the client
  * is still valid after the call, VR_ERROR if it was freed. */
+//写入客户端
 int writeToClient(int fd, client *c, int handler_installed) {
     ssize_t nwritten = 0, totwritten = 0;
     size_t objlen;
@@ -844,6 +889,7 @@ int writeToClient(int fd, client *c, int handler_installed) {
 
     maxmemory = c->vel->cc.maxmemory;
     while(clientHasPendingReplies(c)) {
+        //先将缓冲区中的数据写出
         if (c->bufpos > 0) {
             nwritten = vr_write(fd,c->buf+c->sentlen,c->bufpos-c->sentlen);
             if (nwritten <= 0) break;
@@ -852,11 +898,12 @@ int writeToClient(int fd, client *c, int handler_installed) {
 
             /* If the buffer was sent, set bufpos to zero to continue with
              * the remainder of the reply. */
+            //发送完毕后将对应的偏移量和置为0
             if ((int)c->sentlen == c->bufpos) {
                 c->bufpos = 0;
                 c->sentlen = 0;
             }
-        } else {
+        } else {//缓冲区为空则从回复链表中发送
             o = dlistNodeValue(dlistFirst(c->reply));
             objlen = sdslen(o->ptr);
             objmem = getStringObjectSdsUsedMemory(o);
@@ -866,13 +913,14 @@ int writeToClient(int fd, client *c, int handler_installed) {
                 c->reply_bytes -= objmem;
                 continue;
             }
-
+            //调用写入操作
             nwritten = vr_write(fd, ((char*)o->ptr)+c->sentlen,objlen-c->sentlen);
             if (nwritten <= 0) break;
             c->sentlen += nwritten;
             totwritten += nwritten;
 
             /* If we fully sent the object on head go to the next one */
+            //如果已经将当前对象发送完毕，跳到下一个节点
             if (c->sentlen == objlen) {
                 dlistDelNode(c->reply,dlistFirst(c->reply));
                 c->sentlen = 0;
@@ -960,6 +1008,7 @@ int handleClientsWithPendingWrites(vr_eventloop *vel) {
 }
 
 /* resetClient prepare the client to process the next command */
+//重置客户端
 void resetClient(client *c) {
     redisCommandProc *prevcmd = c->cmd ? c->cmd->proc : NULL;
 
@@ -981,6 +1030,7 @@ void resetClient(client *c) {
     }
 }
 
+//处理查询缓冲区
 int processInlineBuffer(client *c) {
     char *newline;
     int argc, j;
@@ -988,9 +1038,11 @@ int processInlineBuffer(client *c) {
     size_t querylen;
 
     /* Search for end of line */
+    //找到第一段数据末尾的\n，strchr找到字符中第一次出现的位置
     newline = strchr(c->querybuf,'\n');
 
     /* Nothing to do without a \r\n */
+    //没有\r\n
     if (newline == NULL) {
         if (sdslen(c->querybuf) > PROTO_INLINE_MAX_SIZE) {
             addReplyError(c,"Protocol error: too big inline request");
@@ -1000,12 +1052,16 @@ int processInlineBuffer(client *c) {
     }
 
     /* Handle the \r\n case. */
+    //跳过末尾的\r
     if (newline && newline != c->querybuf && *(newline-1) == '\r')
         newline--;
 
     /* Split the input buffer up to the \r\n */
+    //得到第一段的数据长度
     querylen = newline-(c->querybuf);
+    //分配查询缓存长度的sds
     aux = sdsnewlen(c->querybuf,querylen);
+    //返回参数字符串数组
     argv = sdssplitargs(aux,&argc);
     sdsfree(aux);
     if (argv == NULL) {
@@ -1017,6 +1073,7 @@ int processInlineBuffer(client *c) {
     /* Newline from slaves can be used to refresh the last ACK time.
      * This is useful for a slave to ping back while loading a big
      * RDB file. */
+    //
     if (querylen == 0 && c->flags & CLIENT_SLAVE)
         c->repl_ack_time = c->vel->unixtime;
 
@@ -1030,6 +1087,7 @@ int processInlineBuffer(client *c) {
     }
 
     /* Create redis objects for all arguments. */
+    //创建参数对象放入客户端
     for (c->argc = 0, j = 0; j < argc; j++) {
         if (sdslen(argv[j])) {
             c->argv[c->argc] = createObject(OBJ_STRING,argv[j]);
@@ -1044,6 +1102,7 @@ int processInlineBuffer(client *c) {
 
 /* Helper function. Trims query buffer to make the function that processes
  * multi bulk requests idempotent. */
+//设置协议错误
 static void setProtocolError(client *c, int pos) {
     if (log_loggable(LOG_VERB)) {
         sds client = catClientInfoString(sdsempty(),c);
@@ -1054,7 +1113,7 @@ static void setProtocolError(client *c, int pos) {
     c->flags |= CLIENT_CLOSE_AFTER_REPLY;
     sdsrange(c->querybuf,pos,-1);
 }
-
+//处理批量缓存
 int processMultibulkBuffer(client *c) {
     char *newline = NULL;
     int pos = 0, ok;
@@ -1075,12 +1134,15 @@ int processMultibulkBuffer(client *c) {
         }
 
         /* Buffer should also contain \n */
+        //
         if (newline-(c->querybuf) > ((signed)sdslen(c->querybuf)-2))
             return VR_ERROR;
 
         /* We know for sure there is a whole line since newline != NULL,
          * so go ahead and find out the multi bulk length. */
+        //*后接参数个数
         serverAssertWithInfo(c,NULL,c->querybuf[0] == '*');
+        //将参数个数读入ll
         ok = string2ll(c->querybuf+1,newline-(c->querybuf+1),&ll);
         if (!ok || ll > 1024*1024) {
             addReplyError(c,"Protocol error: invalid multibulk length");
@@ -1088,12 +1150,13 @@ int processMultibulkBuffer(client *c) {
             return VR_ERROR;
         }
 
+        //
         pos = (newline-c->querybuf)+2;
         if (ll <= 0) {
             sdsrange(c->querybuf,pos,-1);
             return VR_OK;
         }
-
+        //参数个数赋值给批量回复的长度
         c->multibulklen = ll;
 
         /* Setup argv array on client structure */
@@ -1102,9 +1165,11 @@ int processMultibulkBuffer(client *c) {
     }
 
     serverAssertWithInfo(c,NULL,c->multibulklen > 0);
+    //处理每个参数
     while(c->multibulklen) {
         /* Read bulk length if unknown */
         if (c->bulklen == -1) {
+            //得到新行的末尾
             newline = strchr(c->querybuf+pos,'\r');
             if (newline == NULL) {
                 if (sdslen(c->querybuf) > PROTO_INLINE_MAX_SIZE) {
@@ -1119,7 +1184,7 @@ int processMultibulkBuffer(client *c) {
             /* Buffer should also contain \n */
             if (newline-(c->querybuf) > ((signed)sdslen(c->querybuf)-2))
                 break;
-
+            //得到参数的字符串长度
             if (c->querybuf[pos] != '$') {
                 addReplyErrorFormat(c,
                     "Protocol error: expected '$', got '%c'",
@@ -1127,14 +1192,14 @@ int processMultibulkBuffer(client *c) {
                 setProtocolError(c,pos);
                 return VR_ERROR;
             }
-
+            //得到参数长度
             ok = string2ll(c->querybuf+pos+1,newline-(c->querybuf+pos+1),&ll);
             if (!ok || ll < 0 || ll > 512*1024*1024) {
                 addReplyError(c,"Protocol error: invalid bulk length");
                 setProtocolError(c,pos);
                 return VR_ERROR;
             }
-
+            //pos指向新的行首
             pos += newline-(c->querybuf+pos)+2;
             if (ll >= PROTO_MBULK_BIG_ARG) {
                 size_t qblen;
@@ -1143,11 +1208,13 @@ int processMultibulkBuffer(client *c) {
                  * try to make it likely that it will start at c->querybuf
                  * boundary so that we can optimize object creation
                  * avoiding a large copy of data. */
+                //削剪两端的数据只保留范围内的
                 sdsrange(c->querybuf,pos,-1);
                 pos = 0;
                 qblen = sdslen(c->querybuf);
                 /* Hint the sds library about the amount of bytes this string is
                  * going to contain. */
+                //
                 if (qblen < (size_t)ll+2)
                     c->querybuf = sdsMakeRoomFor(c->querybuf,ll+2-qblen);
             }
@@ -1166,6 +1233,7 @@ int processMultibulkBuffer(client *c) {
                 c->bulklen >= PROTO_MBULK_BIG_ARG &&
                 (signed) sdslen(c->querybuf) == c->bulklen+2)
             {
+                //创建参数对象
                 c->argv[c->argc++] = createObject(OBJ_STRING,c->querybuf);
                 sdsIncrLen(c->querybuf,-2); /* remove CRLF */
                 /* Assume that if we saw a fat argument we'll see another one
@@ -1192,7 +1260,7 @@ int processMultibulkBuffer(client *c) {
     /* Still not read to process the command */
     return VR_ERROR;
 }
-
+//处理查询缓冲区：解包
 void processInputBuffer(client *c) {
     c->vel->current_client = c;
     /* Keep processing while there is something in the input buffer */
@@ -1211,6 +1279,7 @@ void processInputBuffer(client *c) {
         /* Determine request type when unknown. */
         if (!c->reqtype) {
             if (c->querybuf[0] == '*') {
+                //标记为批量命令:就是普通协议
                 c->reqtype = PROTO_REQ_MULTIBULK;
             } else {
                 c->reqtype = PROTO_REQ_INLINE;
@@ -1220,16 +1289,19 @@ void processInputBuffer(client *c) {
         if (c->reqtype == PROTO_REQ_INLINE) {
             if (processInlineBuffer(c) != VR_OK) break;
         } else if (c->reqtype == PROTO_REQ_MULTIBULK) {
+            //调用解包函数
             if (processMultibulkBuffer(c) != VR_OK) break;
         } else {
             serverPanic("Unknown request type");
         }
 
         /* Multibulk processing could see a <= 0 length. */
+
         if (c->argc == 0) {
             resetClient(c);
         } else {
             /* Only reset the client when the command was executed. */
+            //处理命令并返回对应客户端
             if (processCommand(c) == VR_OK)
                 resetClient(c);
             /* freeMemoryIfNeeded may flush slave output buffers. This may result
@@ -1245,6 +1317,7 @@ void processInputBuffer(client *c) {
     c->vel->current_client = NULL;
 }
 
+//从客户端读取查询缓冲区
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     client *c = (client*) privdata;
     int nread, readlen;
@@ -1266,10 +1339,11 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         if (remaining < readlen) readlen = remaining;
     }
-
+    //调整缓冲区大小
     qblen = sdslen(c->querybuf);
     if (c->querybuf_peak < qblen) c->querybuf_peak = qblen;
     c->querybuf = sdsMakeRoomFor(c->querybuf, readlen);
+    //网络io
     nread = vr_read(fd, c->querybuf+qblen, readlen);
     if (nread == -1) {
         if (errno == EAGAIN) {
@@ -1299,13 +1373,16 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
         freeClient(c);
         return;
     }
+    //处理查询缓冲区:将数据打包成参数对象
     processInputBuffer(c);
 
+    //将链接抛给对应的worker线程
     if (c->flags&CLIENT_JUMP) {
         dispatch_conn_exist(c,c->taridx);
     }
 }
 
+//找到所有客户端中查询缓冲区的最大值以及回复链表的最大长度
 void getClientsMaxBuffers(vr_eventloop *vel, unsigned long *longest_output_list,
                           unsigned long *biggest_input_buffer) {
     client *c;
@@ -1313,6 +1390,7 @@ void getClientsMaxBuffers(vr_eventloop *vel, unsigned long *longest_output_list,
     dlistIter li;
     unsigned long lol = 0, bib = 0;
 
+    //创建正向的迭代器
     dlistRewind(vel->clients,&li);
     while ((ln = dlistNext(&li)) != NULL) {
         c = dlistNodeValue(ln);
@@ -1335,6 +1413,7 @@ void getClientsMaxBuffers(vr_eventloop *vel, unsigned long *longest_output_list,
  * On failure the function still populates 'peerid' with the "?:0" string
  * in case you want to relax error checking or need to display something
  * anyway (see anetPeerToString implementation for more info). */
+//得到对方的ip:port
 void genClientPeerId(client *client, char *peerid,
                             size_t peerid_len) {
     if (client->flags & CLIENT_UNIX_SOCKET) {
@@ -1350,6 +1429,8 @@ void genClientPeerId(client *client, char *peerid,
  * if client->peerid is NULL, otherwise returning the cached value.
  * The Peer ID never changes during the life of the client, however it
  * is expensive to compute. */
+//得到对端的ip:port
+
 char *getClientPeerId(client *c) {
     char peerid[VR_INET_PEER_ID_LEN];
 
@@ -1362,11 +1443,13 @@ char *getClientPeerId(client *c) {
 
 /* Concatenate a string representing the state of a client in an human
  * readable format, into the sds string 's'. */
+//将客户端的信息到字符串
 sds catClientInfoString(sds s, client *client) {
     char flags[16], events[3], *p;
     int emask;
 
     p = flags;
+    //
     if (client->flags & CLIENT_SLAVE) {
         if (client->flags & CLIENT_MONITOR)
             *p++ = 'O';
@@ -1384,36 +1467,37 @@ sds catClientInfoString(sds s, client *client) {
     if (client->flags & CLIENT_READONLY) *p++ = 'r';
     if (p == flags) *p++ = 'N';
     *p++ = '\0';
-
+    //拿到对应的文件事件类型
     emask = client->conn->sd == -1 ? 0 : aeGetFileEvents(client->vel->el,client->conn->sd);
     p = events;
     if (emask & AE_READABLE) *p++ = 'r';
     if (emask & AE_WRITABLE) *p++ = 'w';
     *p = '\0';
-    
+    //将对应的信息输出到字符串中
     return sdscatfmt(s,
         "oid=%i id=%U addr=%s fd=%i name=%s age=%I idle=%I flags=%s db=%i sub=%i psub=%i multi=%i qbuf=%U qbuf-free=%U obl=%U oll=%U omem=%U events=%s cmd=%s",
-        client->curidx,
-        (unsigned long long) client->id,
-        getClientPeerId(client),
-        client->conn->sd,
-        client->name ? (char*)client->name->ptr : "",
-        (long long)(client->vel->unixtime - client->ctime),
-        (long long)(client->vel->unixtime - client->lastinteraction),
-        flags,
-        client->dictid,
-        (int) dictSize(client->pubsub_channels),
-        (int) dlistLength(client->pubsub_patterns),
-        (client->flags & CLIENT_MULTI) ? client->mstate.count : -1,
-        (unsigned long long) sdslen(client->querybuf),
-        (unsigned long long) sdsavail(client->querybuf),
-        (unsigned long long) client->bufpos,
-        (unsigned long long) dlistLength(client->reply),
-        (unsigned long long) getClientOutputBufferMemoryUsage(client),
+        client->curidx,/*当前的worker线程*/
+        (unsigned long long) client->id,/*客户端的id*/
+        getClientPeerId(client),        /*对端的ip:port*/
+        client->conn->sd,               /*客户端的fd*/
+        client->name ? (char*)client->name->ptr : "",               /*客户端的名字*/
+        (long long)(client->vel->unixtime - client->ctime),         /*客户端已经创建时间*/
+        (long long)(client->vel->unixtime - client->lastinteraction), /*上一次进行交互以后的时间*/
+        flags,                                                        /*标志*/
+        client->dictid,                                                /*数据库id*/
+        (int) dictSize(client->pubsub_channels),                       /*订阅频道*/
+        (int) dlistLength(client->pubsub_patterns),                    /*订阅列表长度*/
+        (client->flags & CLIENT_MULTI) ? client->mstate.count : -1,    /**/
+        (unsigned long long) sdslen(client->querybuf),                 /*查询缓冲区的长度*/
+        (unsigned long long) sdsavail(client->querybuf),                /**/
+        (unsigned long long) client->bufpos,                            /*查询缓冲区的当前偏移偏移指针*/
+        (unsigned long long) dlistLength(client->reply),                /*回复链表长度*/
+        (unsigned long long) getClientOutputBufferMemoryUsage(client),  /**/
         events,
         client->lastcmd ? client->lastcmd->name : "NULL");
 }
 
+//得到所有客户端的信息
 sds getAllClientsInfoString(vr_eventloop *vel) {
     dlistNode *ln;
     dlistIter li;
@@ -1428,7 +1512,7 @@ sds getAllClientsInfoString(vr_eventloop *vel) {
     }
     return o;
 }
-
+//
 struct clientkilldata {
     sds addr;
     int type;
@@ -1437,19 +1521,20 @@ struct clientkilldata {
     int killed;
     int close_this_client;
 };
-
+//client命令的处理
 void clientCommand(client *c) {
     dlistNode *ln;
     dlistIter li;
     client *client;
-
+    //client list：返回客户端列表
     if (!strcasecmp(c->argv[1]->ptr,"list") && c->argc == 2) {
         /* CLIENT LIST */
         sds str = c->cache;
+        //得到所有用户的信息
         sds o = getAllClientsInfoString(c->vel);
 
         str = sdscatsds(str?str:sdsempty(),o);
-
+        //
         if (c->steps >= (darray_n(&workers) - 1)) {
             addReplyBulkCBuffer(c,str,sdslen(str));
             c->steps = 0;
@@ -1465,6 +1550,7 @@ void clientCommand(client *c) {
         }
         sdsfree(o);
         return;
+        //client kill命令
     } else if (!strcasecmp(c->argv[1]->ptr,"kill")) {
         /* CLIENT KILL <ip:port>
          * CLIENT KILL <option> [value] ... <option> [value] */
@@ -1547,6 +1633,7 @@ void clientCommand(client *c) {
         }
 
         /* Iterate clients killing all the matching clients. */
+        //删除销毁客户端
         dlistRewind(c->vel->clients,&li);
         while ((ln = dlistNext(&li)) != NULL) {
             client = dlistNodeValue(ln);
@@ -1656,6 +1743,7 @@ void clientCommand(client *c) {
 
 /* Rewrite the command vector of the client. All the new objects should 
  * be independent. The old command vector is freed. */
+//重写客户端的参数
 void rewriteClientCommandVector(client *c, int argc, ...) {
     va_list ap;
     int j;
@@ -1680,6 +1768,7 @@ void rewriteClientCommandVector(client *c, int argc, ...) {
 }
 
 /* Completely replace the client command vector with the provided one. */
+//替换客户端的参数表
 void replaceClientCommandVector(client *c, int argc, robj **argv) {
     freeClientArgv(c);
     dfree(c->argv);
@@ -1700,6 +1789,7 @@ void replaceClientCommandVector(client *c, int argc, robj **argv) {
  * 2. If the original argument vector was longer than the one we
  *    want to end with, it's up to the caller to set c->argc and
  *    free the no longer used objects on c->argv. */
+//重写客户端的命令名
 void rewriteClientCommandArgument(client *c, int i, robj *newval) {
     robj *oldval;
 
@@ -1732,6 +1822,7 @@ void rewriteClientCommandArgument(client *c, int i, robj *newval) {
  * Note: this function is very fast so can be called as many time as
  * the caller wishes. The main usage of this function currently is
  * enforcing the client output length limits. */
+//得到客户端的输出缓冲区中的数据字节数
 unsigned long getClientOutputBufferMemoryUsage(client *c) {
     unsigned long list_item_size = sizeof(dlistNode)+sizeof(robj);
 
@@ -1747,6 +1838,7 @@ unsigned long getClientOutputBufferMemoryUsage(client *c) {
  * CLIENT_TYPE_PUBSUB -> Client subscribed to Pub/Sub channels
  * CLIENT_TYPE_MASTER -> The client representing our replication master.
  */
+//得到客户端的类型
 int getClientType(client *c) {
     if (c->flags & CLIENT_MASTER) return CLIENT_TYPE_MASTER;
     if ((c->flags & CLIENT_SLAVE) && !(c->flags & CLIENT_MONITOR))
@@ -1755,6 +1847,7 @@ int getClientType(client *c) {
     return CLIENT_TYPE_NORMAL;
 }
 
+//通过名字得到客户端的类型
 int getClientTypeByName(char *name) {
     if (!strcasecmp(name,"normal")) return CLIENT_TYPE_NORMAL;
     else if (!strcasecmp(name,"slave")) return CLIENT_TYPE_SLAVE;
@@ -1763,6 +1856,7 @@ int getClientTypeByName(char *name) {
     else return -1;
 }
 
+//得到客户端类型的字符串
 char *getClientTypeName(int class) {
     switch(class) {
     case CLIENT_TYPE_NORMAL: return "normal";
@@ -1779,6 +1873,7 @@ char *getClientTypeName(int class) {
  *
  * Return value: non-zero if the client reached the soft or the hard limit.
  *               Otherwise zero is returned. */
+//校验客户端输出缓冲的长度限制
 int checkClientOutputBufferLimits(client *c) {
     int soft = 0, hard = 0, class;
     unsigned long used_mem = getClientOutputBufferMemoryUsage(c);
@@ -1798,12 +1893,15 @@ int checkClientOutputBufferLimits(client *c) {
     /* We need to check if the soft limit is reached continuously for the
      * specified amount of seconds. */
     if (soft) {
+        //第一次到达软限制，记录时间
         if (c->obuf_soft_limit_reached_time == 0) {
             c->obuf_soft_limit_reached_time = c->vel->unixtime;
             soft = 0; /* First time we see the soft limit reached */
         } else {
+            //超过软限制的时间
             time_t elapsed = c->vel->unixtime - c->obuf_soft_limit_reached_time;
 
+            //在限制的时间内，软限制有效，否则有一次触发软限制
             if (elapsed <=
                 server.client_obuf_limits[class].soft_limit_seconds) {
                 soft = 0; /* The client still did not reached the max number of
@@ -1812,6 +1910,7 @@ int checkClientOutputBufferLimits(client *c) {
             }
         }
     } else {
+        //软限制时间置为0
         c->obuf_soft_limit_reached_time = 0;
     }
     return soft || hard;
@@ -1824,6 +1923,7 @@ int checkClientOutputBufferLimits(client *c) {
  * Note: we need to close the client asynchronously because this function is
  * called from contexts where the client can't be freed safely, i.e. from the
  * lower level functions pushing data inside the client output buffers. */
+//异步关闭客户端输出缓冲区：当达到资源限制时
 void asyncCloseClientOnOutputBufferLimitReached(client *c) {
     ASSERT(c->reply_bytes < SIZE_MAX-(1024*64));
     if (c->reply_bytes == 0 || c->flags & CLIENT_CLOSE_ASAP) return;
@@ -1831,6 +1931,7 @@ void asyncCloseClientOnOutputBufferLimitReached(client *c) {
         sds client = catClientInfoString(sdsempty(),c);
 
         freeClientAsync(c);
+        //记录客户端信息
         log_warn("Client %s scheduled to be closed ASAP for overcoming of output buffer limits.", client);
         sdsfree(client);
     }
@@ -1840,6 +1941,8 @@ void asyncCloseClientOnOutputBufferLimitReached(client *c) {
  * output buffers without returning control to the event loop.
  * This is also called by SHUTDOWN for a best-effort attempt to send
  * slaves the latest writes. */
+//
+//刷新从的输出缓冲区
 void flushSlavesOutputBuffers(void) {
     dlistIter li;
     dlistNode *ln;
@@ -1856,6 +1959,7 @@ void flushSlavesOutputBuffers(void) {
          * This is what we want since slaves in this state should not receive
          * writes before the first ACK. */
         events = aeGetFileEvents(repl.vel.el,slave->conn->sd);
+        //将剩余数据返回给客户端
         if (events & AE_WRITABLE &&
             slave->replstate == SLAVE_STATE_ONLINE &&
             clientHasPendingReplies(slave))
@@ -1882,6 +1986,7 @@ void flushSlavesOutputBuffers(void) {
  * time left for the previous duration. However if the duration is smaller
  * than the time left for the previous pause, no change is made to the
  * left duration. */
+//中断客户端
 void pauseClients(vr_eventloop *vel, long long end) {
     if (vel == NULL) return;
 
@@ -1892,6 +1997,7 @@ void pauseClients(vr_eventloop *vel, long long end) {
 
 /* Return non-zero if clients are currently paused. As a side effect the
  * function checks if the pause time was reached and clear it. */
+//客户端是否被中断
 int clientsArePaused(vr_eventloop *vel) {
     if (vel->clients_paused &&
         vel->clients_pause_end_time < vel->mstime)
@@ -1930,6 +2036,7 @@ int clientsArePaused(vr_eventloop *vel) {
  * write, close sequence needed to serve a client.
  *
  * The function returns the total number of events processed. */
+//当被阻塞的时候
 int processEventsWhileBlocked(vr_eventloop *vel) {
     int iterations = 4; /* See the function top-comment. */
     int count = 0;
@@ -1943,6 +2050,7 @@ int processEventsWhileBlocked(vr_eventloop *vel) {
     return count;
 }
 
+//当前客户端
 int
 current_clients(void)
 {

@@ -3,23 +3,34 @@
 
 #include <vr_core.h>
 
+//将字符串转换为double
 #ifdef __CYGWIN__
 #define strtold(a,b) ((long double)strtod((a),(b)))
 #endif
 
+//创建对象
 robj *createObject(int type, void *ptr) {
+    //创建内存
     robj *o = dalloc(sizeof(*o));
+    //类型
     o->type = type;
+    //创建sds对象
     o->encoding = OBJ_ENCODING_RAW;
+    //底层数据
     o->ptr = ptr;
+    //常量？
     o->constant = 0;
+    //引用计数
     o->refcount = -1;
+    //失效
     o->lru = 0;
     return o;
 }
 
 /* Create a string object with encoding OBJ_ENCODING_RAW, that is a plain
  * string object where o->ptr points to a proper sds string. */
+
+//创建string对象
 robj *createRawStringObject(const char *ptr, size_t len) {
     return createObject(OBJ_STRING,sdsnewlen(ptr,len));
 }
@@ -27,7 +38,9 @@ robj *createRawStringObject(const char *ptr, size_t len) {
 /* Create a string object with encoding OBJ_ENCODING_EMBSTR, that is
  * an object where the sds string is actually an unmodifiable string
  * allocated in the same chunk as the object itself. */
+//创建嵌入sds对象
 robj *createEmbeddedStringObject(const char *ptr, size_t len) {
+   //将对象与对应的sds头部一起分配 
     robj *o = dalloc(sizeof(robj)+sizeof(struct sdshdr8)+len+1);
     struct sdshdr8 *sh = (void*)(o+1);
 
@@ -57,13 +70,14 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len) {
  * The current limit of 39 is chosen so that the biggest string object
  * we allocate as EMBSTR will still fit into the 64 byte arena of jemalloc. */
 #define OBJ_ENCODING_EMBSTR_SIZE_LIMIT 44
+//创建string对象
 robj *createStringObject(const char *ptr, size_t len) {
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
         return createEmbeddedStringObject(ptr,len);
     else
         return createRawStringObject(ptr,len);
 }
-
+//从ll创建string
 robj *createStringObjectFromLongLong(long long value) {
     robj *o;
     if (value >= 0 && value < OBJ_SHARED_INTEGERS) {
@@ -86,6 +100,7 @@ robj *createStringObjectFromLongLong(long long value) {
  * and the output of snprintf() is not modified.
  *
  * The 'humanfriendly' option is used for INCRBYFLOAT and HINCRBYFLOAT. */
+//从long double类型创建string
 robj *createStringObjectFromLongDouble(long double value, int humanfriendly) {
     char buf[256];
     int len;
@@ -130,6 +145,7 @@ robj *createStringObjectFromLongDouble(long double value, int humanfriendly) {
  * will always result in a fresh object that is unshared (refcount == 1).
  *
  * The resulting object always has refcount set to 1. */
+//复制string对象
 robj *dupStringObject(robj *o) {
     robj *d;
 
@@ -150,7 +166,7 @@ robj *dupStringObject(robj *o) {
         break;
     }
 }
-
+//创建常量对象
 robj *dupStringObjectUnconstant(robj *o) {
     if (o->constant) return o;
     return dupStringObject(o);
@@ -335,7 +351,7 @@ robj *resetRefCount(robj *obj) {
     obj->refcount = 0;
     return obj;
 }
-
+//检查类型
 int checkType(client *c, robj *o, int type) {
     if (o->type != type) {
         addReply(c,shared.wrongtypeerr);
@@ -343,7 +359,7 @@ int checkType(client *c, robj *o, int type) {
     }
     return 0;
 }
-
+//判断对象时longlong
 int isObjectRepresentableAsLongLong(robj *o, long long *llval) {
     serverAssertWithInfo(NULL,o,o->type == OBJ_STRING);
     if (o->encoding == OBJ_ENCODING_INT) {
@@ -355,6 +371,7 @@ int isObjectRepresentableAsLongLong(robj *o, long long *llval) {
 }
 
 /* Try to encode a string object in order to save space */
+//尝试对对象进行编码
 robj *tryObjectEncoding(robj *o) {
     long value;
     sds s = o->ptr;
@@ -369,6 +386,7 @@ robj *tryObjectEncoding(robj *o) {
     /* We try some specialized encoding only for objects that are
      * RAW or EMBSTR encoded, in other words objects that are still
      * in represented by an actually array of chars. */
+    //判断对象底层编码
     if (!sdsEncodedObject(o)) return o;
 
     /* It's constant object, not encode it.  */
@@ -378,6 +396,7 @@ robj *tryObjectEncoding(robj *o) {
      * Note that we are sure that a string larger than 21 chars is not
      * representable as a 32 nor 64 bit integer. */
     len = sdslen(s);
+    //当长度<21并且可以转化为int
     if (len <= 21 && string2l(s,len,&value)) {
         /* This object is encodable as a long. Try to use a shared object.
          * Note that we avoid using shared integers when maxmemory is used
@@ -434,6 +453,7 @@ robj *tryObjectEncoding(robj *o) {
 
 /* Get a decoded version of an encoded object (returned as a new object).
  * If the object is already raw-encoded just increment the ref count. */
+//将底层编码为int类型的对象转化为字符对象
 robj *getDecodedObject(robj *o) {
     robj *dec;
 
@@ -482,6 +502,7 @@ int compareStringObjectsWithFlags(robj *a, robj *b, int flags) {
         blen = ll2string(bufb,sizeof(bufb),(long) b->ptr);
         bstr = bufb;
     }
+    //根据环境LC_COLLATE比较字符串
     if (flags & REDIS_COMPARE_COLL) {
         return strcoll(astr,bstr);
     } else {
@@ -500,6 +521,7 @@ int compareStringObjects(robj *a, robj *b) {
 }
 
 /* Wrapper for compareStringObjectsWithFlags() using collation. */
+//比较字符串
 int collateStringObjects(robj *a, robj *b) {
     return compareStringObjectsWithFlags(a,b,REDIS_COMPARE_COLL);
 }
@@ -508,6 +530,7 @@ int collateStringObjects(robj *a, robj *b) {
  * point of view of a string comparison, otherwise 0 is returned. Note that
  * this function is faster then checking for (compareStringObject(a,b) == 0)
  * because it can perform some more optimization. */
+//判断对象是否相等
 int equalStringObjects(robj *a, robj *b) {
     if (a->encoding == OBJ_ENCODING_INT &&
         b->encoding == OBJ_ENCODING_INT){
@@ -518,7 +541,7 @@ int equalStringObjects(robj *a, robj *b) {
         return compareStringObjects(a,b) == 0;
     }
 }
-
+//等到string对象的长度
 size_t stringObjectLen(robj *o) {
     serverAssertWithInfo(NULL,o,o->type == OBJ_STRING);
     if (sdsEncodedObject(o)) {
@@ -527,7 +550,7 @@ size_t stringObjectLen(robj *o) {
         return sdigits10((long)o->ptr);
     }
 }
-
+//将对象转型为double
 int getDoubleFromObject(robj *o, double *target) {
     double value;
     char *eptr;
@@ -556,6 +579,7 @@ int getDoubleFromObject(robj *o, double *target) {
     return VR_OK;
 }
 
+//
 int getDoubleFromObjectOrReply(client *c, robj *o, double *target, const char *msg) {
     double value;
     if (getDoubleFromObject(o, &value) != VR_OK) {
@@ -569,7 +593,7 @@ int getDoubleFromObjectOrReply(client *c, robj *o, double *target, const char *m
     *target = value;
     return VR_OK;
 }
-
+//得到long double
 int getLongDoubleFromObject(robj *o, long double *target) {
     long double value;
     char *eptr;
@@ -701,6 +725,7 @@ size_t getStringObjectSdsUsedMemory(robj *o) {
 
 /* This is a helper function for the OBJECT command. We need to lookup keys
  * without any modification of LRU or other parameters. */
+//从数据库查找key
 robj *objectCommandLookup(client *c, robj *key) {
     dictEntry *de;
 
@@ -717,6 +742,7 @@ robj *objectCommandLookupOrReply(client *c, robj *key, robj *reply) {
 
 /* Object command allows to inspect the internals of an Redis Object.
  * Usage: OBJECT <refcount|encoding|idletime> <key> */
+//针对对象的一些命令
 void objectCommand(client *c) {
     robj *o;
 

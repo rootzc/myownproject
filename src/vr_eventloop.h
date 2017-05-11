@@ -32,7 +32,7 @@ typedef struct vr_eventloop {
     //客户端链表
     dlist *clients;              /* List of active clients */
     
-    //装载handler使用？
+    //装载handler使用里面存放客户端
     dlist *clients_pending_write;/* There is to write or install handler. */
     //异步关闭的客户端链表
     dlist *clients_to_close;     /* Clients to close asynchronously */

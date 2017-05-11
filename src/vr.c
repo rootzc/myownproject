@@ -11,15 +11,20 @@
 #include <vr_conf.h>
 #include <vr_signal.h>
 //#include "./vr_util.h"
+//配置文件路径
 #define VR_CONF_PATH        "conf/vire.conf"
 
-#define VR_LOG_DEFAULT      LOG_NOTICE
+//#define VR_LOG_DEFAULT      LOG_NOTICE
+#define VR_LOG_DEFAULT      LOG_ZC
 #define VR_LOG_MIN          LOG_EMERG
 #define VR_LOG_MAX          LOG_PVERB
 #define VR_LOG_PATH         NULL
 
+//端口号
 #define VR_PORT             8889
+//服务器的地址
 #define VR_ADDR             "0.0.0.0"
+//
 #define VR_INTERVAL         (30 * 1000) /* in msec */
 
 #define VR_PID_FILE         NULL
@@ -27,12 +32,16 @@
 #define VR_THREAD_NUM_DEFAULT	(sysconf(_SC_NPROCESSORS_ONLN)>6?6:sysconf(_SC_NPROCESSORS_ONLN))
 
 const int SHOWIMG = 1;//我自己定义的开关用来显示自己的log:
-
+//启动模式
+//帮助
 static int show_help;
+//打印版本信息
 static int show_version;
+//测试配置
 static int test_conf;
+//守护进程
 static int daemonize;
-
+//命令行参数
 static struct option long_options[] = {
     { "help",           no_argument,        NULL,   'h' },
     { "version",        no_argument,        NULL,   'V' },
@@ -46,8 +55,10 @@ static struct option long_options[] = {
     { NULL,             0,                  NULL,    0  }
 };
 
+//命令行参数解析所用
 static char short_options[] = "hVtdv:o:c:p:T:";
 
+//创建守护进程
 static rstatus_t
 vr_daemonize(int dump_core)
 {
@@ -149,7 +160,7 @@ vr_daemonize(int dump_core)
 
     return VR_OK;
 }
-
+//打印信息
 static void
 vr_print_run(struct instance *nci)
 {
@@ -245,7 +256,7 @@ vr_print_done(void)
 {
     loga("done, rabbit done");
 }
-
+//打印使用手册
 static void
 vr_show_usage(void)
 {
@@ -273,7 +284,7 @@ vr_show_usage(void)
         VR_PID_FILE != NULL ? VR_PID_FILE : "off",
         VR_THREAD_NUM_DEFAULT);
 }
-
+//创建pid文件
 static rstatus_t
 vr_create_pidfile(struct instance *nci)
 {
@@ -303,6 +314,7 @@ vr_create_pidfile(struct instance *nci)
     return VR_OK;
 }
 
+//移除pid文件
 static void
 vr_remove_pidfile(struct instance *nci)
 {
@@ -314,16 +326,18 @@ vr_remove_pidfile(struct instance *nci)
                   nci->pid_filename, strerror(errno));
     }
 }
-
+//设置缺省的配置
 static void
 vr_set_default_options(struct instance *nci)
 {
+    
     int status;
 
     nci->log_level = VR_LOG_DEFAULT;
     nci->log_filename = VR_LOG_PATH;
 
     nci->conf_filename = VR_CONF_PATH;
+
 
     status = vr_gethostname(nci->hostname, VR_MAXHOSTNAMELEN);
     if (status < 0) {
@@ -338,7 +352,7 @@ vr_set_default_options(struct instance *nci)
 
     nci->thread_num = (int)VR_THREAD_NUM_DEFAULT;
 }
-
+//得到特定的命令行参数，并且设置全局的变量
 static rstatus_t
 vr_get_options(int argc, char **argv, struct instance *nci)
 {
@@ -347,6 +361,7 @@ vr_get_options(int argc, char **argv, struct instance *nci)
     opterr = 0;
 
     for (;;) {
+        //解析命令行参数
         c = getopt_long(argc, argv, short_options, long_options, NULL);
         if (c == -1) {
             /* no more options */
@@ -436,19 +451,21 @@ vr_get_options(int argc, char **argv, struct instance *nci)
  * Returns true if configuration file has a valid syntax, otherwise
  * returns false
  */
+//测试配置文件
 static bool
 vr_test_conf(struct instance *nci, int test)
 {
     vr_conf *cf;
-
+    //创建配置树
     cf = conf_create(nci->conf_filename);
+    //创建失败时打印日志
     if (cf == NULL) {
         if (test)
             log_stderr("vire: configuration file '%s' syntax is invalid",
                 nci->conf_filename);
         return false;
     }
-
+    //销毁配置树
     conf_destroy(cf);
 
     if (test)
@@ -457,76 +474,82 @@ vr_test_conf(struct instance *nci, int test)
     return true;
 }
 
+//预先启动的函数
 static int
 vr_pre_run(struct instance *nci)
 {
     int ret;
-
+    //初始化日志
     ret = log_init(nci->log_level, nci->log_filename);
     if (ret != VR_OK) {
         return ret;
     }
-
+    //记录日志
     log_debug(LOG_VERB, "Vire used logfile: %s", nci->conf_filename);
 
     if (!vr_test_conf(nci, false)) {
         log_error("conf file %s is error", nci->conf_filename);
         return VR_ERROR;
     }
-
+    //创建守护进程
     if (daemonize) {
         ret = vr_daemonize(1);
         if (ret != VR_OK) {
             return ret;
         }
     }
-
+    //得到pid
     nci->pid = getpid();
-
+    //初始化信号函数
     ret = signal_init();
     if (ret != VR_OK) {
         return ret;
     }
-
+    //创建pid文件
     if (nci->pid_filename) {
         ret = vr_create_pidfile(nci);
         if (ret != VR_OK) {
             return VR_ERROR;
         }
     }
-
+    //初始化server
     ret = init_server(nci);
     if (ret != VR_OK) {
         return VR_ERROR;
     }
-
+    //打印图标
     vr_print_run(nci);
 
     return VR_OK;
 }
-
+//
 static void
 vr_post_run(struct instance *nci)
 {
     /* deinit the threads */
+    //析构worker线程
     workers_deinit();
+    //析构后台线程
     backends_deinit();
+    //析构主线程
     master_deinit();
-    
+    //移除pid文件
     if (nci->pidfile) {
         vr_remove_pidfile(nci);
     }
-
+    //卸载信号处理函数
     signal_deinit();
-
+    //打印结束信息
     vr_print_done();
-
+    //日志结构析构
     log_deinit();
 }
 
+//主运行函数
 static void
 vr_run(struct instance *nci)
 {
+    //校验线程数目
     if (nci->thread_num <= 0) {
         log_error("number of work threads must be greater than 0");
         return;
@@ -536,29 +559,36 @@ vr_run(struct instance *nci)
     }
 
     /* run the threads */
+    //运行主线程
     master_run();
+    //运行worker线程
     workers_run();
+    //运行后台线程
     backends_run();
 
     /* wait for the threads finish */
+    //等待worker退出
     workers_wait();
+    //等待后台线程退出
     backends_wait();
 }
 
+//main函数
 int
 main(int argc, char **argv)
 {
     rstatus_t status;
     struct instance nci;
-
+//设置默认的参数配置
     vr_set_default_options(&nci);
-
+    //获取命令行的参数：
     status = vr_get_options(argc, argv, &nci);
     if (status != VR_OK) {
+        //出错时打印使用帮助
         vr_show_usage();
         exit(1);
     }
-
+    //处理version命令
     if (show_version) {
         log_stderr("This is vire-%s" CRLF, VR_VERSION_STRING);
         if (show_help) {
@@ -566,24 +596,25 @@ main(int argc, char **argv)
         }
         exit(0);
     }
-
+    //测试配置文件
     if (test_conf) {
         if (!vr_test_conf(&nci, true)) {
             exit(1);
         }
         exit(0);
     }
-
+    //预先启动的函数
     status = vr_pre_run(&nci);
     if (status != VR_OK) {
         vr_post_run(&nci);
         exit(1);
     }
 
+    //得到程序的全路径
     server.executable = getAbsolutePath(argv[0]);
-
+    //运行函数
     vr_run(&nci);
-
+    //析构资源
     vr_post_run(&nci);
 
     return VR_OK;

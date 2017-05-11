@@ -60,6 +60,7 @@ void vr_replication_deinit(void)
     }
 }
 
+//rdb不再传输后，不再阻塞
 /* This is called by unblockClient() to perform the blocking op type
  * specific cleanup. We just remove the client from the list of clients
  * waiting for replica acks. Never call it directly, call unblockClient()
@@ -72,6 +73,7 @@ void unblockClientWaitingReplicas(client *c) {
 
 /* ------------------------- MIN-SLAVES-TO-WRITE  --------------------------- */
 
+//得到可以进行slave复制的个数
 /* This function counts the number of slaves with lag <= min-slaves-max-lag.
  * If the option is active, the server will prevent writes if there are not
  * enough connected slaves with the specified lag (or less). */
@@ -94,6 +96,7 @@ void refreshGoodSlavesCount(void) {
     repl.repl_good_slaves_count = good;
 }
 
+//slave与master失去链接
 /* This function is called when the slave lose the connection with the
  * master into an unexpected way. */
 void replicationHandleMasterDisconnection(void) {
@@ -126,6 +129,7 @@ void replicationHandleMasterDisconnection(void) {
  * replicationResurrectCachedMaster() that is used after a successful PSYNC
  * handshake in order to reactivate the cached master.
  */
+
 void replicationCacheMaster(client *c) {
     ASSERT(repl.master != NULL && repl.cached_master == NULL);
     log_debug(LOG_NOTICE,"Caching the disconnected master state.");
@@ -153,6 +157,7 @@ void replicationCacheMaster(client *c) {
  * pair. Mostly useful for logging, since we want to log a slave using its
  * IP address and it's listening port which is more clear for the user, for
  * example: "Closing connection with slave 10.1.2.3:6380". */
+//返回slavle的网络地址
 char *replicationGetSlaveName(client *c) {
     static char buf[VR_INET_PEER_ID_LEN];
     char ip[VR_INET_ADDRSTRLEN];
@@ -175,6 +180,7 @@ char *replicationGetSlaveName(client *c) {
  * In the future the same command can be used in order to configure
  * the replication to initiate an incremental replication instead of a
  * full resync. */
+//配置repl的命令
 void replconfCommand(client *c) {
     int j;
 

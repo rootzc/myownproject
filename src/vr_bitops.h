@@ -1,6 +1,6 @@
 #ifndef _VR_BITOPS_H_
 #define _VR_BITOPS_H_
-
+//位操作
 size_t redisPopcount(void *s, long count);
 long redisBitpos(void *s, unsigned long count, int bit);
 void setUnsignedBitfield(unsigned char *p, uint64_t offset, uint64_t bits, uint64_t value);

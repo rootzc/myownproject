@@ -3,6 +3,7 @@
 
 /* Unblock a client calling the right function depending on the kind
  * of operation the client is blocking for. */
+//解锁客户端
 void unblockClient(client *c) {
     if (c->btype == BLOCKED_LIST) {
         unblockClientWaitingData(c);
@@ -32,6 +33,7 @@ void unblockClient(client *c) {
  * Note that if the timeout is zero (usually from the point of view of
  * commands API this means no timeout) the value stored into 'timeout'
  * is zero. */
+//获取一个对象的超时时间
 int getTimeoutFromObjectOrReply(client *c, robj *object, long long *timeout, int unit) {
     long long tval;
 
@@ -56,6 +58,7 @@ int getTimeoutFromObjectOrReply(client *c, robj *object, long long *timeout, int
 /* Block a client for the specific operation type. Once the CLIENT_BLOCKED
  * flag is set client query buffer is not longer processed, but accumulated,
  * and will be processed when the client is unblocked. */
+//阻塞客户端
 void blockClient(client *c, int btype) {
     c->flags |= CLIENT_BLOCKED;
     c->btype = btype;

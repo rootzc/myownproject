@@ -12,6 +12,7 @@
 /* In the client->watched_keys list we need to use watchedKey structures
  * as in order to identify a key in Redis we need both the key name and the
  * DB */
+//监控的键
 typedef struct watchedKey {
     robj *key;
     redisDb *db;
@@ -19,6 +20,7 @@ typedef struct watchedKey {
 
 /* Unwatch all the keys watched by this client. To clean the EXEC dirty
  * flag is up to the caller. */
+//不再监视键
 void unwatchAllKeys(client *c) {
     dlistIter li;
     dlistNode *ln;

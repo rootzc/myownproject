@@ -19,7 +19,7 @@
 #ifdef VR_HAVE_BACKTRACE
 # include <execinfo.h>
 #endif
-
+//设置文件描述符为阻塞
 int
 vr_set_blocking(int sd)
 {
@@ -32,7 +32,7 @@ vr_set_blocking(int sd)
 
     return fcntl(sd, F_SETFL, flags & ~O_NONBLOCK);
 }
-
+//设置文件描述符为非阻塞
 int
 vr_set_nonblocking(int sd)
 {
@@ -45,7 +45,7 @@ vr_set_nonblocking(int sd)
 
     return fcntl(sd, F_SETFL, flags | O_NONBLOCK);
 }
-
+//设置端口号为可重用
 int
 vr_set_reuseaddr(int sd)
 {
@@ -66,6 +66,7 @@ vr_set_reuseaddr(int sd)
  * option must use readv() or writev() to do data transfer in bulk and
  * hence avoid the overhead of small packets.
  */
+//开启tcp的传输算法
 int
 vr_set_tcpnodelay(int sd)
 {
@@ -78,6 +79,7 @@ vr_set_tcpnodelay(int sd)
     return setsockopt(sd, IPPROTO_TCP, TCP_NODELAY, &nodelay, len);
 }
 
+//设置tcplinger
 int
 vr_set_linger(int sd, int timeout)
 {
@@ -91,7 +93,7 @@ vr_set_linger(int sd, int timeout)
 
     return setsockopt(sd, SOL_SOCKET, SO_LINGER, &linger, len);
 }
-
+//设置发送缓冲区大小
 int
 vr_set_sndbuf(int sd, int size)
 {
@@ -101,7 +103,7 @@ vr_set_sndbuf(int sd, int size)
 
     return setsockopt(sd, SOL_SOCKET, SO_SNDBUF, &size, len);
 }
-
+//设置接收端口
 int
 vr_set_rcvbuf(int sd, int size)
 {
@@ -111,7 +113,7 @@ vr_set_rcvbuf(int sd, int size)
 
     return setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &size, len);
 }
-
+//得到传输中的错误
 int
 vr_get_soerror(int sd)
 {
@@ -128,7 +130,7 @@ vr_get_soerror(int sd)
 
     return status;
 }
-
+//得到发送缓冲区
 int
 vr_get_sndbuf(int sd)
 {
@@ -145,7 +147,7 @@ vr_get_sndbuf(int sd)
 
     return size;
 }
-
+//得到接收缓冲区大小
 int
 vr_get_rcvbuf(int sd)
 {
@@ -162,7 +164,7 @@ vr_get_rcvbuf(int sd)
 
     return size;
 }
-
+//设置keepalive
 int
 vr_set_tcpkeepalive(int sd, int keepidle, int keepinterval, int keepcount)
 {
@@ -210,7 +212,7 @@ vr_set_tcpkeepalive(int sd, int keepidle, int keepinterval, int keepcount)
 
     return VR_OK;
 }
-
+//端口号转管
 int
 _vr_atoi(char *line, size_t n)
 {
@@ -456,7 +458,7 @@ int d2string(char *buf, size_t len, double value) {
 
     return len;
 }
-
+//判断端口号合法
 bool
 vr_valid_port(int n)
 {
@@ -470,6 +472,7 @@ vr_valid_port(int n)
 /*
  * Send n bytes on a blocking descriptor
  */
+//发送数据
 ssize_t
 _vr_sendn(int sd, const void *vptr, size_t n)
 {
@@ -501,6 +504,7 @@ _vr_sendn(int sd, const void *vptr, size_t n)
 /*
  * Recv n bytes from a blocking descriptor
  */
+//接收数据
 ssize_t
 _vr_recvn(int sd, void *vptr, size_t n)
 {
@@ -532,6 +536,7 @@ _vr_recvn(int sd, void *vptr, size_t n)
 /*
  * Return the current time in microseconds since Epoch
  */
+//返回当前的时间
 int64_t
 vr_usec_now(void)
 {
@@ -558,7 +563,7 @@ vr_msec_now(void)
 {
     return vr_usec_now() / 1000LL;
 }
-
+//解析inet到sockinfo
 static int
 vr_resolve_inet(sds name, int port, struct sockinfo *si)
 {
@@ -666,7 +671,7 @@ vr_resolve(sds name, int port, struct sockinfo *si)
 
     return vr_resolve_inet(name, port, si);
 }
-
+//得到对端的ip
 static int vr_net_peer_to_string(int fd, char *ip, size_t ip_len, int *port) {
     struct sockaddr_storage sa;
     socklen_t salen = sizeof(sa);
@@ -706,12 +711,14 @@ error:
 /* Format an IP,port pair into something easy to parse. If IP is IPv6
  * (matches for ":"), the ip is surrounded by []. IP and port are just
  * separated by colons. This the standard to display addresses within Redis. */
+//将ip，port转换为字符串
 static int vr_net_format_addr(char *buf, size_t buf_len, char *ip, int port) {
     return snprintf(buf,buf_len, strchr(ip,':') ?
            "[%s]:%d" : "%s:%d", ip, port);
 }
 
 /* Like anetFormatAddr() but extract ip and port from the socket's peer. */
+//转换对端的ipduankou
 int vr_net_format_peer(int fd, char *buf, size_t buf_len) {
     char ip[VR_INET6_ADDRSTRLEN];
     int port;
@@ -799,6 +806,7 @@ get_random_hex_chars(char *p, unsigned int len) {
 }
 
 /* Glob-style pattern matching. */
+//模式匹配
 int stringmatchlen(const char *pattern, int patternLen,
         const char *string, int stringLen, int nocase)
 {
@@ -1078,6 +1086,7 @@ void bytesToHuman(char *s, unsigned long long n) {
  * The function does not try to normalize everything, but only the obvious
  * case of one or more "../" appearning at the start of "filename"
  * relative path. */
+//得到文件全路径
 sds getAbsolutePath(char *filename) {
     char cwd[1024];
     sds abspath;

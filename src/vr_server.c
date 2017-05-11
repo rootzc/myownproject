@@ -337,28 +337,30 @@ init_server(struct instance *nci)
         log_error("Populate need adminpass commands failed");
         return VR_ERROR;
     }
-
+    //得到配置文件的全路径
     server.configfile = getAbsolutePath(nci->conf_filename);
     server.hz = 10;
     server.dblnum = cserver->databases;
     server.dbinum = cserver->internal_dbs_per_databases;
     server.dbnum = server.dblnum*server.dbinum;
+    //创建数据库的空间   
     darray_init(&server.dbs, server.dbnum, sizeof(redisDb));
     server.pidfile = nci->pid_filename;
     server.executable = NULL;
     server.activerehashing = CONFIG_DEFAULT_ACTIVE_REHASHING;
-    
+    //客户端最大的查询缓存长度
     server.client_max_querybuf_len = PROTO_MAX_QUERYBUF_LEN;
 
+    //初始化数据库
     for (i = 0; i < server.dbnum; i ++) {
         db = darray_push(&server.dbs);
         redisDbInit(db);
     }
-
+    //创建客户端
     server.clients = dlistCreate();
-    
+    //创建监视器
     server.monitors = dlistCreate();
-
+    //
     server.loading = 0;
 
     server.lua_timedout = 0;
@@ -366,14 +368,14 @@ init_server(struct instance *nci)
     server.aof_state = AOF_OFF;
 
     server.stop_writes_on_bgsave_err = 0;
-
+    //就绪队列
     server.ready_keys = dlistCreate();
-
+    //系统最大内存
     server.system_memory_size = dalloc_get_memory_size();
 
     server.rdb_child_pid = -1;
     server.aof_child_pid = -1;
-
+//初始化一些数据结构的配置
     server.hash_max_ziplist_entries = OBJ_HASH_MAX_ZIPLIST_ENTRIES;
     server.hash_max_ziplist_value = OBJ_HASH_MAX_ZIPLIST_VALUE;
     server.list_max_ziplist_size = OBJ_LIST_MAX_ZIPLIST_SIZE;
@@ -384,15 +386,20 @@ init_server(struct instance *nci)
     server.hll_sparse_max_bytes = CONFIG_DEFAULT_HLL_SPARSE_MAX_BYTES;
 
     server.notify_keyspace_events = 0;
-
+//初始化慢查询日志
     slowlogInit();
+    //初始化复制对象
     vr_replication_init();
-    
+    //创建共享对象
     createSharedObjects();
 
+    
+    
+    //端口号
     server.port = cserver->port;
     
     /* Init worker first */
+    //初始化worker线程
     ret = workers_init(nci->thread_num);
     if (ret != VR_OK) {
         log_error("Init worker threads failed");
@@ -400,12 +407,13 @@ init_server(struct instance *nci)
     }
 
     /* Init master after worker init */
+    //初始化master线程
     ret = master_init(conf);
     if (ret != VR_OK) {
         log_error("Init master thread failed");
         return VR_ERROR;
     }
-
+    //初始化后台线程
     ret = backends_init(1);
     if (ret != VR_OK) {
         log_error("Init backend threads failed");
@@ -435,7 +443,7 @@ unsigned int getLRUClock(void) {
 
 #define EVICTION_SAMPLES_ARRAY_SIZE 16
 void evictionPoolPopulate(dict *sampledict, dict *keydict, 
-    struct evictionPoolEntry *pool, int maxmemory_samples) {
+                          struct evictionPoolEntry *pool, int maxmemory_samples) {
     int j, k, count;
     dictEntry *_samples[EVICTION_SAMPLES_ARRAY_SIZE];
     dictEntry **samples;
@@ -1072,7 +1080,9 @@ sds genVireInfoString(vr_eventloop *vel, char *section) {
             }
         }
     }
-
+    //——————————————————————————
+    info = sdscatprintf(info,"\n--------------------------create by:张聪--------------------------------------\n\r");
+    //————————————————————————————————
     if (kss != NULL) {
         kss->nelem = 0;
         darray_destroy(kss);
@@ -1115,6 +1125,7 @@ void timeCommand(client *c) {
  * If it will not be possible to set the limit accordingly to the configured
  * max number of clients, the function will do the reverse setting
  * server.maxclients to the value that we can actually handle. */
+//修改文件最大打开的文件描述符个数
 int adjustOpenFilesLimit(int maxclients) {
     rlim_t maxfiles, finallimit = 0;
     rlim_t oldlimit;

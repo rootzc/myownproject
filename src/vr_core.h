@@ -128,16 +128,24 @@ struct vr_worker;
 #include <vr_hyperloglog.h>
 
 #include <vr_slowlog.h>
-
+//配置
 struct instance {
+    //日志等级
     int             log_level;                   /* log level */
+    //日志文件
     char            *log_filename;               /* log filename */
+    //配置文件
     char            *conf_filename;              /* configuration filename */
+    //主机名
     char            hostname[VR_MAXHOSTNAMELEN]; /* hostname */
+    //缓冲区大小
     size_t          mbuf_chunk_size;             /* mbuf chunk size */
+    //pid文件
     pid_t           pid;                         /* process id */
     char            *pid_filename;               /* pid filename */
+    
     unsigned        pidfile:1;                   /* pid file created? */
+    //线程数目
     int             thread_num;                  /* the thread number */
 };
 

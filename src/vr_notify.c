@@ -8,6 +8,7 @@
  *
  * The function returns -1 if the input contains characters not mapping to
  * any class. */
+//将通知的事件类型转换为对应的标志
 int keyspaceEventsStringToFlags(char *classes) {
     char *p = classes;
     int c, flags = 0;
@@ -35,6 +36,7 @@ int keyspaceEventsStringToFlags(char *classes) {
  * as input an integer with the xored flags and returns a string representing
  * the selected classes. The string returned is an sds string that needs to
  * be released with sdsfree(). */
+//将事件类型转换为数值
 sds keyspaceEventsFlagsToString(int flags) {
     sds res;
 
@@ -63,6 +65,7 @@ sds keyspaceEventsFlagsToString(int flags) {
  * 'event' is a C string representing the event name.
  * 'key' is a Redis object representing the key name.
  * 'dbid' is the database ID where the key lives.  */
+//通知对应的键空间
 void notifyKeyspaceEvent(int type, char *event, robj *key, int dbid) {
     sds chan;
     robj *chanobj, *eventobj;
@@ -77,11 +80,14 @@ void notifyKeyspaceEvent(int type, char *event, robj *key, int dbid) {
     /* __keyspace@<db>__:<key> <event> notifications. */
     if (server.notify_keyspace_events & NOTIFY_KEYSPACE) {
         chan = sdsnewlen("__keyspace@",11);
+        //将数据库id放在buf
         len = ll2string(buf,sizeof(buf),dbid);
+        //追加buf到特定的频道
         chan = sdscatlen(chan, buf, len);
         chan = sdscatlen(chan, "__:", 3);
         chan = sdscatsds(chan, key->ptr);
         chanobj = createObject(OBJ_STRING, chan);
+        //发布信息
         pubsubPublishMessage(chanobj, eventobj);
         decrRefCount(chanobj);
     }

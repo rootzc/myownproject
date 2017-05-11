@@ -6,7 +6,7 @@ static int num_backend_threads;
 struct darray backends;
 
 static void *backend_thread_run(void *args);
-
+//初始化后台线程
 int
 vr_backend_init(vr_backend *backend)
 {
@@ -24,13 +24,14 @@ vr_backend_init(vr_backend *backend)
     backend->resize_db = 0;
     backend->rehash_db = 0;
 
+    //初始化事件处理机
     vr_eventloop_init(&backend->vel, 10);
     backend->vel.thread.fun_run = backend_thread_run;
     backend->vel.thread.data = backend;
     
     return VR_OK;
 }
-
+//析构后台线程
 void
 vr_backend_deinit(vr_backend *backend)
 {
@@ -40,10 +41,12 @@ vr_backend_deinit(vr_backend *backend)
 
     vr_eventloop_deinit(&backend->vel);
 }
-
+//周期函数
 static int
 backend_cron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
+    //得到后台线程
     vr_worker *backend = clientData;
+    //事件处理机
     vr_eventloop *vel = &backend->vel;
     size_t stat_used_memory, stats_peak_memory;
 
@@ -62,7 +65,7 @@ backend_cron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     if (stat_used_memory > stats_peak_memory) {
         update_stats_set(vel->stats, peak_memory, stat_used_memory);
     }
-
+    //数据库的周期处理函数
     databasesCron(backend);
 
     /* Update the config cache */
@@ -73,7 +76,7 @@ backend_cron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     vel->cronloops ++;
     return 1000/vel->hz;
 }
-
+//安装后台线程的事件处理函数
 static int
 setup_backend(vr_backend *backend)
 {
@@ -86,7 +89,7 @@ setup_backend(vr_backend *backend)
     
     return VR_OK;
 }
-
+//后台线程的运行函数
 static void *
 backend_thread_run(void *args)
 {
@@ -97,7 +100,7 @@ backend_thread_run(void *args)
 
     return NULL;
 }
-
+//初始化后台线程组
 int
 backends_init(uint32_t backend_count)
 {
@@ -121,7 +124,7 @@ backends_init(uint32_t backend_count)
 
     return VR_OK;
 }
-
+//运行后台线程组
 int
 backends_run(void)
 {
@@ -137,7 +140,7 @@ backends_run(void)
 
     return VR_OK;
 }
-
+//等待后台线程退出
 int
 backends_wait(void)
 {
@@ -153,7 +156,7 @@ backends_wait(void)
 
     return VR_OK;
 }
-
+//析构后台线程组
 void
 backends_deinit(void)
 {

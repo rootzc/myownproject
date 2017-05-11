@@ -9,6 +9,7 @@
  *
  * Empty entries have the key pointer set to NULL. */
 #define MAXMEMORY_EVICTION_POOL_SIZE 16
+//每个键的空闲时间hash表
 struct evictionPoolEntry {
     unsigned long long idle;    /* Object idle time. */
     sds key;                    /* Key name. */
@@ -17,6 +18,7 @@ struct evictionPoolEntry {
 /* Vire database representation. There are multiple databases identified
  * by integers from 0 (the default database) up to the max configured
  * database. The database number is the 'id' field in the structure. */
+
 typedef struct redisDb {
     dict *dict;                 /* The keyspace for this DB */
     dict *expires;              /* Timeout of keys with a timeout set */

@@ -3,6 +3,7 @@
 
 #include <vr_core.h>
 
+//创建结构体初始化ip：port
 vr_listen *
 vr_listen_create(sds listen_str)
 {
@@ -98,7 +99,7 @@ vr_listen_create(sds listen_str)
 
     return vlisten;
 }
-
+//销毁
 void
 vr_listen_destroy(vr_listen *vliston)
 {
@@ -118,7 +119,7 @@ vr_listen_destroy(vr_listen *vliston)
     
     dfree(vliston);
 }
-
+//设置端口号为可重用
 static rstatus_t
 vr_listen_reuse(vr_listen *p)
 {
@@ -154,20 +155,20 @@ rstatus_t
 vr_listen_begin(vr_listen *vlisten)
 {
     rstatus_t status;
-
+    //创建socket
     vlisten->sd = socket(vlisten->info.family, SOCK_STREAM, 0);
     if (vlisten->sd < 0) {
         log_error("socket failed: %s", strerror(errno));
         return VR_ERROR;
     }
-
+    //设置文件为端口重用
     status = vr_listen_reuse(vlisten);
     if (status < 0) {
         log_error("reuse of addr %s for listening on p %d failed: %s",
                   vlisten->name, vlisten->sd, strerror(errno));
         return VR_ERROR;
     }
-
+    //绑定端口
     status = bind(vlisten->sd, (struct sockaddr *)&vlisten->info.addr, vlisten->info.addrlen);
     if (status < 0) {
         log_error("bind on p %d to addr %s failed: %s", vlisten->sd,
@@ -184,14 +185,14 @@ vr_listen_begin(vr_listen *vlisten)
             return VR_ERROR;
         }
     }
-
+    //开始监听
     status = listen(vlisten->sd, 512);
     if (status < 0) {
         log_error("listen on p %d on addr %s failed: %s", vlisten->sd,
                   vlisten->name, strerror(errno));
         return VR_ERROR;
     }
-
+    //设置为非阻塞
     status = vr_set_nonblocking(vlisten->sd);
     if (status < 0) {
         log_error("set nonblock on p %d on addr %s failed: %s", vlisten->sd,
@@ -201,7 +202,7 @@ vr_listen_begin(vr_listen *vlisten)
 
     return VR_OK;
 }
-
+//接收链接
 int
 vr_listen_accept(vr_listen *vlisten)
 {
@@ -212,9 +213,10 @@ vr_listen_accept(vr_listen *vlisten)
     ASSERT(vlisten->sd > 0);
     
     log_debug(LOG_DEBUG,"client_accept");
-
+//得到客户端数量
     conf_server_get(CONFIG_SOPN_MAXCLIENTS,&maxclients);
     for (;;) {
+        //接收链接
         sd = accept(vlisten->sd, NULL, NULL);
         if (sd < 0) {
             if (errno == EINTR) {
