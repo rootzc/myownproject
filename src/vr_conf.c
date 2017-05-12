@@ -1084,7 +1084,7 @@ conf_pre_load_from_string(vr_conf *cf, char *config)
 
         //进入section节
         if (lines[i][0] == '[') {
-            //
+            //[]节中为null不合法
             if (sdslen(lines[i]) <= 2 || lines[i][sdslen(lines[i])-1] == ']') {
                 log_error("Organization name %s in conf file %s error",
                     lines[i], cf->fname);

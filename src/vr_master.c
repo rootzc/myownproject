@@ -88,7 +88,7 @@ master_deinit(void)
     
 }
 
-//接收链接
+//接收链接：分发到worker
 static void
 client_accept(aeEventLoop *el, int fd, void *privdata, int mask) {
     int sd;
@@ -151,7 +151,17 @@ dispatch_conn_exist(client *c, int tid)
         log_error("Notice the worker failed.");
     }
 }
-//master的业务逻辑
+//master的业务逻辑：只有一个逻辑会用到这个事件就是当worker线程要跳转时会向master写入b，master选择一个新的worker传递对应的客户端过去
+//同时向该worker线程写入一个 j
+//这里就要说下交换队列的设计思路
+///链接交换单元：num是客户端的连接，而data用来在worker和master之间进行交换数据，
+//这里没有锁操作，原因是什么呢，这里借鉴了go的设计思路之一：用通信解决共享而不是用共享解决通信
+//struct connswapunit {
+    //客户端的socket id
+//    int num;
+//    void *data;
+//    struct connswapunit *next;
+//};
 static void
 thread_event_process(aeEventLoop *el, int fd, void *privdata, int mask) {
 
@@ -202,7 +212,7 @@ thread_event_process(aeEventLoop *el, int fd, void *privdata, int mask) {
     }
 }
 
-//启动master
+//安装master的事件
 static int
 setup_master(void)
 {
@@ -211,7 +221,7 @@ setup_master(void)
     vr_listen **vlisten;
     vr_worker *worker;
 
-    //创建worker线程
+    //监听worker的管道读事件
     for (j = 0; j < darray_n(&workers); j ++) {
         worker = darray_get(&workers, j);
         //worker线程监听管道的读事件
@@ -223,7 +233,7 @@ setup_master(void)
         }
     }
 
-    //master线程监听链接
+    //master线程监听链接:来一个连接就压入到worker的交换队列
     for (j = 0; j < darray_n(&master.listens); j ++) {
         vlisten = darray_get(&master.listens,j);
         status = aeCreateFileEvent(master.vel.el, (*vlisten)->sd, AE_READABLE, 

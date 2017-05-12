@@ -101,7 +101,7 @@ vr_worker_init(vr_worker *worker)
     if (worker == NULL) {
         return VR_ERROR;
     }
-
+    //初始化线程id，管道描述符
     worker->id = 0;
     worker->socketpairs[0] = -1;
     worker->socketpairs[1] = -1;
@@ -203,6 +203,7 @@ worker_get_next_idx(int curidx)
 void
 dispatch_conn_new(vr_listen *vlisten, int sd)
 {
+    //创建一个新的交换单元
     struct connswapunit *su = csui_new();
     char buf[1];
     vr_worker *worker;
@@ -213,7 +214,7 @@ dispatch_conn_new(vr_listen *vlisten, int sd)
         log_error("Failed to allocate memory for connection swap object\n");
         return ;
     }
-    
+    //轮训得到对应的线程
     //得到线程
     int tid = (last_worker_thread + 1) % num_worker_threads;
     worker = darray_get(&workers, (uint32_t)tid);
@@ -221,7 +222,19 @@ dispatch_conn_new(vr_listen *vlisten, int sd)
     //记录上次的线程id
     last_worker_thread = tid;
 
-    //初始化链接单元
+    //初始化链接单元、
+    /*
+    //网络库
+    //主机名端口号文件描述符
+    //typedef struct vr_listen {
+    //    sds name;               /* hostname:port */
+    //    int port;               /* port */
+    //    mode_t perm;            /* socket permissions */
+    //    struct sockinfo info;   /* listen socket info */
+    //    int sd;                 /* socket descriptor */
+    //}vr_listen;
+
+    */
     su->num = sd;
     su->data = vlisten;
 

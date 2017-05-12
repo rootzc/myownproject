@@ -66,19 +66,19 @@ vr_eventloop_init(vr_eventloop *vel, int filelimit)
         log_error("create list failed: out of memory");
         return VR_ENOMEM;
     }
-
+    //创建异步关闭的客户端
     vel->clients_to_close = dlistCreate();
     if (vel->clients_to_close == NULL) {
         log_error("create list failed: out of memory");
         return VR_ENOMEM;
     }
-
+    //不再阻塞的客户端链表
     vel->unblocked_clients = dlistCreate();
     if (vel->unblocked_clients == NULL) {
         log_error("create list failed: out of memory");
         return VR_ENOMEM;
     }
-
+    //线程的状态
     vel->stats = dalloc(sizeof(vr_stats));
     if (vel->stats == NULL) {
         log_error("out of memory");

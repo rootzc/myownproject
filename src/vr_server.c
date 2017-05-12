@@ -339,6 +339,7 @@ init_server(struct instance *nci)
     }
     //得到配置文件的全路径
     server.configfile = getAbsolutePath(nci->conf_filename);
+    //服务器中数据库相关
     server.hz = 10;
     server.dblnum = cserver->databases;
     server.dbinum = cserver->internal_dbs_per_databases;
