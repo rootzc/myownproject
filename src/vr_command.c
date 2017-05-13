@@ -324,13 +324,14 @@ struct redisCommand *lookupCommandByCString(char *s) {
  * preventCommandReplication(client *c);
  *
  */
-
+//执行客户端命令的时候
 void call(client *c, int flags) {
     long long dirty, start, duration;
     int client_old_flags = c->flags;
 
     /* Sent the command to clients in MONITOR mode, only if the commands are
      * not generated from reading an AOF. */
+     //处理监视链表有关的
     if (dlistLength(server.monitors) &&
         !server.loading &&
         !(c->cmd->flags & (CMD_SKIP_MONITOR|CMD_ADMIN)))
@@ -344,8 +345,10 @@ void call(client *c, int flags) {
     redisOpArrayInit(&server.also_propagate);
 
     /* Call the command. */
+    //这里执行客户端的命令
     dirty = c->vel->dirty;
     start = vr_usec_now();
+    //就是这个狗东西
     c->cmd->proc(c);
     duration = vr_usec_now()-start;
     dirty = c->vel->dirty-dirty;

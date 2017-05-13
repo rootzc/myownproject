@@ -499,7 +499,7 @@ vr_pre_run(struct instance *nci)
     }
     //记录日志
     log_debug(LOG_VERB, "Vire used logfile: %s", nci->conf_filename);
-
+    //再次测试配置文件
     if (!vr_test_conf(nci, false)) {
         log_error("conf file %s is error", nci->conf_filename);
         return VR_ERROR;
@@ -535,7 +535,7 @@ vr_pre_run(struct instance *nci)
 
     return VR_OK;
 }
-//
+//析构资源并推出
 static void
 vr_post_run(struct instance *nci)
 {

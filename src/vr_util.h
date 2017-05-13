@@ -53,6 +53,7 @@
 /*
  * Wrapper to workaround well known, safe, implicit type conversion when
  * invoking system calls.
+ 网络io用到的api
  */
 #define vr_gethostname(_name, _len) \
     gethostname((char *)_name, (size_t)_len)

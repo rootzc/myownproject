@@ -14,19 +14,31 @@
 //统计信息
 typedef struct vr_stats {
     /* Fields used only for stats */
+    //服务开始时间
     time_t starttime;          /* Server start time */
+    //已经处理的命令个数
     long long numcommands;     /* Number of processed commands */
+    //已经接受的连接个数
     long long numconnections;  /* Number of connections received */
+    //过期键的数量
     long long expiredkeys;     /* Number of expired keys */
+    //内存紧张的键的个数
     long long evictedkeys;     /* Number of evicted keys (maxmemory) */
+    //查找键的命中次数
     long long keyspace_hits;   /* Number of successful lookups of keys */
+    //没命中的次数
     long long keyspace_misses; /* Number of failed lookups of keys */
+    
+    //因为客户端超限的拒绝连接的次数
     long long rejected_conn;   /* Clients rejected because of maxclients */
     long long sync_full;       /* Number of full resyncs with slaves. */
     long long sync_partial_ok; /* Number of accepted PSYNC requests. */
     long long sync_partial_err;/* Number of unaccepted PSYNC requests. */
+    //已读取的字节
     long long net_input_bytes; /* Bytes read from network. */
+    //已发送的字节数
     long long net_output_bytes; /* Bytes written to network. */
+    //内存峰值
     size_t    peak_memory;     /* Max used memory record */
     
     /* The following two are used to track instantaneous metrics, like

@@ -1339,11 +1339,11 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         if (remaining < readlen) readlen = remaining;
     }
-    //调整缓冲区大小
+    //调整缓冲区大小与峰值
     qblen = sdslen(c->querybuf);
     if (c->querybuf_peak < qblen) c->querybuf_peak = qblen;
     c->querybuf = sdsMakeRoomFor(c->querybuf, readlen);
-    //网络io
+    //网络io，读取数据到客户端的缓冲区
     nread = vr_read(fd, c->querybuf+qblen, readlen);
     if (nread == -1) {
         if (errno == EAGAIN) {

@@ -29,7 +29,8 @@ typedef struct vr_worker {
     unsigned int rehash_db;
 }vr_worker;
 
-//链接交换单元
+//链接交换单元：num是客户端的连接，而data用来在worker和master之间进行交换数据，
+//这里没有锁操作，原因是什么呢，这里借鉴了go的设计思路之一：用通信解决共享而不是用共享解决通信
 struct connswapunit {
     //客户端的socket id
     int num;

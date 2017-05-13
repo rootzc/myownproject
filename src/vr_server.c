@@ -339,6 +339,7 @@ init_server(struct instance *nci)
     }
     //得到配置文件的全路径
     server.configfile = getAbsolutePath(nci->conf_filename);
+    //服务器中数据库相关
     server.hz = 10;
     server.dblnum = cserver->databases;
     server.dbinum = cserver->internal_dbs_per_databases;
@@ -507,7 +508,7 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict,
     }
     if (samples != _samples) dfree(samples);
 }
-
+//这个函数用于刷新客户端的缓存表，很厉害哦
 int freeMemoryIfNeeded(vr_eventloop *vel) {
     size_t mem_used, mem_tofree, mem_freed;
     mstime_t latency, eviction_latency;
@@ -515,7 +516,7 @@ int freeMemoryIfNeeded(vr_eventloop *vel) {
     long long maxmemory;
     int maxmemory_policy, maxmemory_samples;
     int ret;
-
+//配置的最大使用内存
     maxmemory = vel->cc.maxmemory;
     if (dalloc_used_memory() <= maxmemory)
         return VR_OK;
