@@ -55,6 +55,7 @@ master_init(vr_conf *conf)
     //开始监听
     for (j = 0; j < darray_n(&master.listens); j ++) {
         vlisten = darray_get(&master.listens, j);
+        //到这里时才将监听的fd赋值给vlisten
         status = vr_listen_begin(*vlisten);
         if (status != VR_OK) {
             log_error("Begin listen to %s failed", (*vlisten)->name);

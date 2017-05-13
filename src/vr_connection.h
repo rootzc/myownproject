@@ -35,7 +35,7 @@ struct conn {
     unsigned            eof:1;           /* eof? aka passive close? */
     unsigned            done:1;          /* done? aka close? */
 
-    //
+    //输入输出队列
     dlist                *inqueue;        /* incoming request queue */
     dlist                *outqueue;       /* outputing response queue */
 };

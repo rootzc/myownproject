@@ -3,7 +3,7 @@
 
 #include <vr_core.h>
 
-//创建结构体初始化ip：port
+//创建结构体初始化;将ip：port转换到对应的字段
 vr_listen *
 vr_listen_create(sds listen_str)
 {
@@ -150,7 +150,7 @@ vr_listen_reuse(vr_listen *p)
 
     return status;
 }
-
+//开始监听客户端连接
 rstatus_t
 vr_listen_begin(vr_listen *vlisten)
 {
