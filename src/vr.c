@@ -31,6 +31,19 @@
 
 #define VR_THREAD_NUM_DEFAULT	(sysconf(_SC_NPROCESSORS_ONLN)>6?6:sysconf(_SC_NPROCESSORS_ONLN))
 
+#ifndef PRINT_STACK
+#define PRINT_STACK 12345
+#endif
+
+void Print_Func(char *str){
+    if (PRINT_STACK != 12345)
+    {
+        return;
+    }
+    printf("\nnow in:%s\n",str);
+}
+
+
 const int SHOWIMG = 1;//我自己定义的开关用来显示自己的log:
 //启动模式
 //帮助
