@@ -140,7 +140,7 @@ client *createClient(vr_eventloop *vel, struct conn *conn) {
  * Typically gets called every time a reply is built, before adding more
  * data to the clients output buffers. If the function returns VR_ERROR no
  * data should be appended to the output buffers. */
-//准备写:判断写操作是否允许与合法
+//准备写:判断写操作是否允许与合法，同时将该客户端添加到写入链表
 int prepareClientToWrite(client *c) {
     /* If it's the Lua client we always return ok without installing any
      * handler since there is no socket at all. */
@@ -174,6 +174,7 @@ int prepareClientToWrite(client *c) {
          * a system call. We'll only really install the write handler if
          * we'll not be able to write the whole reply at once. */
         c->flags |= CLIENT_PENDING_WRITE;
+        //这里就很叼了，将客户端压入写出的链表，这样每次进入epoll阻塞前就会将该链表的客户端的输出缓冲的数据写出
         dlistAddNodeHead(c->vel->clients_pending_write,c);
     }
 
@@ -327,7 +328,8 @@ void _addReplyStringToList(client *c, const char *s, size_t len) {
  * -------------------------------------------------------------------------- */
 //添加回应包
 void addReply(client *c, robj *obj) {
-    //
+    //不要小看这一个,这里判断了数据是否可写，同时将对应的客户端链入写出列表，
+    //该链表在每一次进入epoll_wait前会写出客户端，如果一次无法全部写出，则会创建对应的写事件
     if (prepareClientToWrite(c) != VR_OK) return;
 
     /* This is an important place where we can avoid copy-on-write
@@ -957,6 +959,7 @@ int writeToClient(int fd, client *c, int handler_installed) {
          * We just rely on data / pings received for timeout detection. */
         if (!(c->flags & CLIENT_MASTER)) c->lastinteraction = c->vel->unixtime;
     }
+    //没有数据时卸载事件
     if (!clientHasPendingReplies(c)) {
         c->sentlen = 0;
         if (handler_installed) aeDeleteFileEvent(c->vel->el,c->conn->sd,AE_WRITABLE);
@@ -970,6 +973,8 @@ int writeToClient(int fd, client *c, int handler_installed) {
     return VR_OK;
 }
 
+//发送缓冲区数据到客户端，这是在beforesleep函数中没有将一个客户端的数据全部写出时，
+//创建的客户端写事件函数，如果没有数据可写时会将该事件卸载
 /* Write event handler. Just send data to the client. */
 void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
@@ -981,11 +986,13 @@ void sendReplyToClient(aeEventLoop *el, int fd, void *privdata, int mask) {
  * we can just write the replies to the client output buffer without any
  * need to use a syscall in order to install the writable event handler,
  * get it called, and so forth. */
+//这个函数在每次进入epoll监听前调用，将客户端缓存的数据发送给客户端，而不用再注册一个客户端的写事件，
+//避免了系统调用也提高了性能
 int handleClientsWithPendingWrites(vr_eventloop *vel) {
     dlistIter li;
     dlistNode *ln;
     int processed = dlistLength(vel->clients_pending_write);
-
+    //创建链表的迭代器：这个列表的客户端都是有数据要写出给客户端的
     dlistRewind(vel->clients_pending_write,&li);
     while((ln = dlistNext(&li))) {
         client *c = dlistNodeValue(ln);
@@ -993,10 +1000,12 @@ int handleClientsWithPendingWrites(vr_eventloop *vel) {
         dlistDelNode(vel->clients_pending_write,ln);
 
         /* Try to write buffers to the client socket. */
+        //将缓冲区的数据写出给客户端
         if (writeToClient(c->conn->sd,c,0) == VR_ERROR) continue;
 
         /* If there is nothing left, do nothing. Otherwise install
          * the write handler. */
+        //判断客户端的缓冲是否有数据未写完,则创建对应的写出事件
         if (clientHasPendingReplies(c) &&
             aeCreateFileEvent(vel->el, c->conn->sd, AE_WRITABLE,
                 sendReplyToClient, c) == AE_ERR)

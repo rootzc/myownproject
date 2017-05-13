@@ -14,8 +14,8 @@
 //配置文件路径
 #define VR_CONF_PATH        "conf/vire.conf"
 
-//#define VR_LOG_DEFAULT      LOG_NOTICE
-#define VR_LOG_DEFAULT      LOG_ZC
+#define VR_LOG_DEFAULT      LOG_NOTICE
+//#define VR_LOG_DEFAULT      LOG_ZC
 #define VR_LOG_MIN          LOG_EMERG
 #define VR_LOG_MAX          LOG_PVERB
 #define VR_LOG_PATH         NULL

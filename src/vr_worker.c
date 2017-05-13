@@ -234,7 +234,7 @@ dispatch_conn_new(vr_listen *vlisten, int sd)
     //    int sd;                 /* socket descriptor */
     //}vr_listen;
 
-    */
+    //*/
     su->num = sd;
     su->data = vlisten;
 
@@ -474,7 +474,9 @@ workers_deinit(void)
 /* This function gets called every time Redis is entering the
  * main loop of the event driven library, that is, before to sleep
  * for ready file descriptors. */
-//进入epoll之前的函数
+//进入epoll之前的函数,要注意这个函数，他就是将客户端的缓冲区的数据写出到客户端，因为每次在事件监听
+//后执行的事件命令都是将数据写入到缓冲，在再一次进行写入之前时才会将数据写出到客户端，这样可以保证
+//客户端读到的数据是完整的而不是片段的
 void
 worker_before_sleep(struct aeEventLoop *eventLoop, void *private_data) {
     vr_worker *worker = private_data;
